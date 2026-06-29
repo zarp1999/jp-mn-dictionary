@@ -1,0 +1,15 @@
+export const COLORS = {
+  primary: '#534AB7',
+  primaryLight: '#EEEDFE',
+  primaryText: '#3C3489',
+  bg: '#F8F8F8',
+  white: '#FFFFFF',
+  border: 'rgba(0,0,0,0.1)',
+  textPrimary: '#1A1A1A',
+  textSecondary: '#666666',
+  textTertiary: '#AAAAAA',
+  amber: '#EF9F27',
+  amberLight: '#FAEEDA',
+  amberText: '#7A5000',
+  overlay: 'rgba(0,0,0,0.4)',
+};
