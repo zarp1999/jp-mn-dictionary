@@ -11,8 +11,14 @@ function KanjiCard({ kanji }) {
           {kanji.strokeCount ? (
             <Text style={styles.metaText}>{kanji.strokeCount}</Text>
           ) : null}
-          {kanji.radical ? (
-            <Text style={styles.metaText}>部首: {kanji.radical}</Text>
+          {kanji.meaningMn ? (
+            <Text
+              style={styles.metaText}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {kanji.meaningMn}
+            </Text>
           ) : null}
         </View>
       </View>

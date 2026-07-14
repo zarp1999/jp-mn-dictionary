@@ -1,5 +1,10 @@
 import rawData from '../data/term_bank_1.json';
 import { getLookupTerms } from './kuromojiTokenizer';
+import {
+  resolveDefinitions,
+  searchV2WordsScored,
+  V2_ID_OFFSET,
+} from './translationLookup';
 
 // term_bank_1.json のフォーマット:
 // [見出し語, 読み, '', '', 数値, [訳語+例文の文字列], 数値, '']
@@ -10,10 +15,11 @@ function parseEntry(item, index) {
 
   // 訳語（◇より前の部分）と例文（◇以降）を分離
   const parts = definitionRaw.split('◇');
-  const definitions = parts[0]
+  const termBankDefinitions = parts[0]
     .split('\n')
     .map(s => s.trim())
     .filter(Boolean);
+  const definitions = resolveDefinitions(headword, reading, termBankDefinitions);
   const examples = parts[1]
     ? parts[1]
         .split('\n')
@@ -351,7 +357,49 @@ function compareSearchResults(a, b) {
   return a.word.id - b.word.id;
 }
 
-function searchWordsStandard(query, direction = 'jp-mn', limit = 100) {
+function getWordDedupKey(word) {
+  return `${word.headword}\0${word.reading || ''}`;
+}
+
+function isTermBankWord(word) {
+  return word.id < V2_ID_OFFSET;
+}
+
+function mergeScoredResults(scoredLists, limit = 100) {
+  const bestByKey = new Map();
+
+  for (const list of scoredLists) {
+    for (const match of list) {
+      const key = getWordDedupKey(match.word);
+      const existing = bestByKey.get(key);
+
+      if (!existing) {
+        bestByKey.set(key, match);
+        continue;
+      }
+
+      if (match.score < existing.score) {
+        bestByKey.set(key, match);
+        continue;
+      }
+
+      if (
+        match.score === existing.score
+        && isTermBankWord(match.word)
+        && !isTermBankWord(existing.word)
+      ) {
+        bestByKey.set(key, match);
+      }
+    }
+  }
+
+  return [...bestByKey.values()]
+    .sort(compareSearchResults)
+    .slice(0, limit)
+    .map(({ word }) => word);
+}
+
+function searchWordsStandardScored(query, direction = 'jp-mn', limit = 100) {
   const q = query.trim().toLowerCase();
   const all = getAllWords();
   const matches = [];
@@ -368,19 +416,29 @@ function searchWordsStandard(query, direction = 'jp-mn', limit = 100) {
   }
 
   matches.sort(compareSearchResults);
-  return matches.slice(0, limit).map(({ word }) => word);
+  return matches.slice(0, limit);
 }
 
-async function searchWordsWithKuromoji(query, limit = 100) {
-  const trimmedQuery = query.trim();
-  const variants = getQueryVariants(trimmedQuery);
+function searchWordsStandard(query, direction = 'jp-mn', limit = 100) {
+  return searchWordsStandardScored(query, direction, limit).map(({ word }) => word);
+}
 
+function searchMergedSources(query, direction = 'jp-mn', limit = 100) {
+  const variants = direction === 'jp-mn'
+    ? getQueryVariants(query)
+    : [query.trim()];
+
+  const scoredLists = [];
   for (const variant of variants) {
-    const standard = searchWordsStandard(variant, 'jp-mn', limit);
-    if (standard.length > 0) {
-      return standard;
-    }
+    scoredLists.push(searchWordsStandardScored(variant, direction, limit));
+    scoredLists.push(searchV2WordsScored(variant, direction, limit));
   }
+
+  return mergeScoredResults(scoredLists, limit);
+}
+
+async function searchWordsMorphological(query, limit = 100) {
+  const trimmedQuery = query.trim();
 
   // 分割は元クエリ優先。接頭辞付き（お会いしたい等）は除去後も試す
   const segmentationQueries = [trimmedQuery];
@@ -441,9 +499,15 @@ async function searchWordsWithKuromoji(query, limit = 100) {
 export async function searchWords(query, direction = 'jp-mn', limit = 100) {
   if (!query || query.trim() === '') return [];
 
-  if (direction === 'jp-mn') {
-    return searchWordsWithKuromoji(query.trim(), limit);
+  const trimmed = query.trim();
+  const merged = searchMergedSources(trimmed, direction, limit);
+  if (merged.length > 0) {
+    return merged;
   }
 
-  return searchWordsStandard(query, direction, limit);
+  if (direction === 'jp-mn') {
+    return searchWordsMorphological(trimmed, limit);
+  }
+
+  return [];
 }

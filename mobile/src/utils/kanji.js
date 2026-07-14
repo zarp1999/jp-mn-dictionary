@@ -2,7 +2,8 @@ import rawKanjiData from '../data/kanji_bank_1.json';
 
 const KANJI_REGEX = /[\u4e00-\u9fff]/;
 
-let _kanjiIndex = null;
+let _kanjiRawByCharacter = null;
+let _kanjiParsedCache = null;
 
 function parseOnYomi(text) {
   if (!text || !text.trim()) {
@@ -36,6 +37,18 @@ function formatStrokeCount(value) {
   return value.split('（')[0].trim() || value;
 }
 
+function parseMeaningsMn(metadata) {
+  const meanings = metadata?.meanings_mn;
+  if (!Array.isArray(meanings)) {
+    return '';
+  }
+
+  return meanings
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter(Boolean)
+    .join('・');
+}
+
 export function parseKanjiEntry(item) {
   const character = item[0] || '';
   const metadata = item[5] || {};
@@ -44,22 +57,41 @@ export function parseKanjiEntry(item) {
     character,
     onYomi: parseOnYomi(item[1]),
     kunYomi: parseKunYomi(item[2]),
-    radical: metadata['部首'] || '',
+    meaningMn: parseMeaningsMn(metadata),
     strokeCount: formatStrokeCount(metadata['画数'] || metadata['総画'] || ''),
   };
 }
 
-function getKanjiIndex() {
-  if (!_kanjiIndex) {
-    _kanjiIndex = new Map();
+function getKanjiRawByCharacter() {
+  if (!_kanjiRawByCharacter) {
+    _kanjiRawByCharacter = new Map();
     for (const item of rawKanjiData) {
       const character = item[0];
-      if (character && !_kanjiIndex.has(character)) {
-        _kanjiIndex.set(character, parseKanjiEntry(item));
+      if (character && !_kanjiRawByCharacter.has(character)) {
+        _kanjiRawByCharacter.set(character, item);
       }
     }
   }
-  return _kanjiIndex;
+  return _kanjiRawByCharacter;
+}
+
+function getKanjiEntry(character) {
+  if (!_kanjiParsedCache) {
+    _kanjiParsedCache = new Map();
+  }
+
+  if (_kanjiParsedCache.has(character)) {
+    return _kanjiParsedCache.get(character);
+  }
+
+  const raw = getKanjiRawByCharacter().get(character);
+  if (!raw) {
+    return null;
+  }
+
+  const entry = parseKanjiEntry(raw);
+  _kanjiParsedCache.set(character, entry);
+  return entry;
 }
 
 export function extractKanjiFromHeadword(headword) {
@@ -80,9 +112,8 @@ export function extractKanjiFromHeadword(headword) {
 
 export function getKanjiForWord(word) {
   const characters = extractKanjiFromHeadword(word.headword || '');
-  const index = getKanjiIndex();
 
   return characters
-    .map((character) => index.get(character))
+    .map((character) => getKanjiEntry(character))
     .filter(Boolean);
 }
