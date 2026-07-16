@@ -3,14 +3,17 @@ import { getLookupTerms } from './kuromojiTokenizer';
 import {
   resolveDefinitions,
   searchV2WordsScored,
+  warmUpV2SearchIndexes,
+  normalizeSearchText,
+  normalizeSearchQuery,
   V2_ID_OFFSET,
 } from './translationLookup';
 
 // term_bank_1.json のフォーマット:
 // [見出し語, 読み, '', '', 数値, [訳語+例文の文字列], 数値, '']
 function parseEntry(item, index) {
-  const headword = item[0] || '';
-  const reading = item[1] || '';
+  const headword = normalizeSearchText(item[0] || '');
+  const reading = normalizeSearchText(item[1] || '');
   const definitionRaw = Array.isArray(item[5]) ? item[5][0] : (item[5] || '');
 
   // 訳語（◇より前の部分）と例文（◇以降）を分離
@@ -40,6 +43,15 @@ function parseEntry(item, index) {
 let _allWords = null;
 let _headwordIndex = null;
 let _headwordSet = null;
+let _termExactHeadwordIndex = null;
+let _termExactReadingIndex = null;
+let _termSortedHeadwords = null;
+let _termSortedReadings = null;
+let _termWarmupPromise = null;
+
+function yieldToMain() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 export function getAllWords() {
   if (!_allWords) {
@@ -48,10 +60,27 @@ export function getAllWords() {
   return _allWords;
 }
 
+async function buildAllWordsChunked() {
+  if (_allWords) {
+    return _allWords;
+  }
+
+  const words = [];
+  const chunkSize = 500;
+  for (let i = 0; i < rawData.length; i += 1) {
+    words.push(parseEntry(rawData[i], i));
+    if (i > 0 && i % chunkSize === 0) {
+      await yieldToMain();
+    }
+  }
+  _allWords = words;
+  return _allWords;
+}
+
 function getHeadwordAliases(headword) {
   return headword
     .split(';')
-    .map((part) => part.trim())
+    .map((part) => normalizeSearchText(part))
     .filter(Boolean);
 }
 
@@ -88,6 +117,105 @@ function getHeadwordSet() {
     }
   }
   return _headwordSet;
+}
+
+function pushIndexValue(map, key, value) {
+  if (!key) {
+    return;
+  }
+  const list = map.get(key);
+  if (list) {
+    list.push(value);
+  } else {
+    map.set(key, [value]);
+  }
+}
+
+function lowerBound(sorted, query) {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid].key < query) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
+function collectPrefixFromSorted(sorted, query, limit) {
+  if (!query || !sorted?.length) {
+    return [];
+  }
+
+  const start = lowerBound(sorted, query);
+  const matches = [];
+  for (let i = start; i < sorted.length; i += 1) {
+    const item = sorted[i];
+    if (!item.key.startsWith(query)) {
+      break;
+    }
+    matches.push(item.word);
+    if (matches.length >= limit) {
+      break;
+    }
+  }
+  return matches;
+}
+
+function buildTermSearchIndexes() {
+  if (_termExactHeadwordIndex && _termExactReadingIndex) {
+    return;
+  }
+
+  const allWords = getAllWords();
+  const exactHeadword = new Map();
+  const exactReading = new Map();
+  const sortedHeadwords = [];
+  const sortedReadings = [];
+
+  for (const word of allWords) {
+    for (const alias of getHeadwordAliases(word.headword)) {
+      pushIndexValue(exactHeadword, alias, word);
+      sortedHeadwords.push({ key: alias, word });
+    }
+    if (word.reading) {
+      pushIndexValue(exactReading, word.reading, word);
+      sortedReadings.push({ key: word.reading, word });
+    }
+  }
+
+  sortedHeadwords.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  sortedReadings.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+
+  _termExactHeadwordIndex = exactHeadword;
+  _termExactReadingIndex = exactReading;
+  _termSortedHeadwords = sortedHeadwords;
+  _termSortedReadings = sortedReadings;
+}
+
+export async function warmUpDictionarySearch() {
+  if (_termWarmupPromise) {
+    return _termWarmupPromise;
+  }
+
+  _termWarmupPromise = (async () => {
+    await warmUpV2SearchIndexes();
+    await buildAllWordsChunked();
+    await yieldToMain();
+    buildTermSearchIndexes();
+    getHeadwordIndex();
+    getHeadwordSet();
+    await yieldToMain();
+  })();
+
+  try {
+    await _termWarmupPromise;
+  } finally {
+    _termWarmupPromise = null;
+  }
 }
 
 // 五段動詞の連用形末尾 → 辞書形末尾
@@ -240,7 +368,7 @@ function segmentByHeadwordsPartial(text) {
 const HONORIFIC_PREFIX = /^(お|ご|御)/;
 
 function getQueryVariants(query) {
-  const trimmed = query.trim();
+  const trimmed = normalizeSearchText(query);
   const variants = [trimmed];
   const stripped = trimmed.replace(HONORIFIC_PREFIX, '');
   if (stripped && stripped !== trimmed) {
@@ -331,10 +459,18 @@ function scoreTextMatch(text, query, baseOffset) {
 }
 
 function getJapaneseMatchScore(word, query) {
-  const headwordScore = scoreTextMatch(word.headword, query, 0);
+  let best = null;
+  for (const alias of getHeadwordAliases(word.headword)) {
+    const score = scoreTextMatch(alias, query, 0);
+    if (score !== null && (best === null || score < best)) {
+      best = score;
+    }
+  }
   const readingScore = scoreTextMatch(word.reading, query, 3);
-  const scores = [headwordScore, readingScore].filter((score) => score !== null);
-  return scores.length > 0 ? Math.min(...scores) : null;
+  if (readingScore !== null && (best === null || readingScore < best)) {
+    best = readingScore;
+  }
+  return best;
 }
 
 function getMongolianMatchScore(word, query) {
@@ -399,19 +535,54 @@ function mergeScoredResults(scoredLists, limit = 100) {
     .map(({ word }) => word);
 }
 
-function searchWordsStandardScored(query, direction = 'jp-mn', limit = 100) {
-  const q = query.trim().toLowerCase();
-  const all = getAllWords();
+function addScoredWord(matches, seenIds, word, score) {
+  if (!word || seenIds.has(word.id)) {
+    return;
+  }
+  seenIds.add(word.id);
+  matches.push({ word, score });
+}
+
+function searchWordsJapaneseIndexed(query, limit = 100) {
+  buildTermSearchIndexes();
   const matches = [];
+  const seenIds = new Set();
 
-  for (let i = 0; i < all.length; i++) {
-    const word = all[i];
-    const score = direction === 'jp-mn'
-      ? getJapaneseMatchScore(word, q)
-      : getMongolianMatchScore(word, q);
+  for (const word of _termExactHeadwordIndex.get(query) || []) {
+    addScoredWord(matches, seenIds, word, 0);
+  }
+  for (const word of _termExactReadingIndex.get(query) || []) {
+    addScoredWord(matches, seenIds, word, 3);
+  }
 
-    if (score !== null) {
-      matches.push({ word, score });
+  for (const word of collectPrefixFromSorted(_termSortedHeadwords, query, limit * 2)) {
+    const exactAlias = getHeadwordAliases(word.headword).some((alias) => alias === query);
+    if (exactAlias) {
+      continue;
+    }
+    addScoredWord(matches, seenIds, word, 1);
+  }
+  for (const word of collectPrefixFromSorted(_termSortedReadings, query, limit * 2)) {
+    if (word.reading === query) {
+      continue;
+    }
+    addScoredWord(matches, seenIds, word, 4);
+  }
+
+  if (matches.length < limit && query.length >= 2) {
+    const all = getAllWords();
+    for (let i = 0; i < all.length; i += 1) {
+      const word = all[i];
+      if (seenIds.has(word.id)) {
+        continue;
+      }
+      const score = getJapaneseMatchScore(word, query);
+      if (score === 2 || score === 5) {
+        addScoredWord(matches, seenIds, word, score);
+      }
+      if (matches.length >= limit * 3) {
+        break;
+      }
     }
   }
 
@@ -419,14 +590,39 @@ function searchWordsStandardScored(query, direction = 'jp-mn', limit = 100) {
   return matches.slice(0, limit);
 }
 
-function searchWordsStandard(query, direction = 'jp-mn', limit = 100) {
-  return searchWordsStandardScored(query, direction, limit).map(({ word }) => word);
+function searchWordsStandardScored(query, direction = 'jp-mn', limit = 100) {
+  const q = normalizeSearchQuery(query, { lowerCase: direction === 'mn-jp' });
+  if (!q) {
+    return [];
+  }
+
+  if (direction === 'jp-mn') {
+    return searchWordsJapaneseIndexed(q, limit);
+  }
+
+  const all = getAllWords();
+  const matches = [];
+
+  for (let i = 0; i < all.length; i++) {
+    const word = all[i];
+    const score = getMongolianMatchScore(word, q);
+    if (score !== null) {
+      matches.push({ word, score });
+      if (matches.length >= limit * 5) {
+        break;
+      }
+    }
+  }
+
+  matches.sort(compareSearchResults);
+  return matches.slice(0, limit);
 }
 
 function searchMergedSources(query, direction = 'jp-mn', limit = 100) {
+  const normalized = normalizeSearchText(query);
   const variants = direction === 'jp-mn'
-    ? getQueryVariants(query)
-    : [query.trim()];
+    ? getQueryVariants(normalized)
+    : [normalized];
 
   const scoredLists = [];
   for (const variant of variants) {
@@ -438,7 +634,7 @@ function searchMergedSources(query, direction = 'jp-mn', limit = 100) {
 }
 
 async function searchWordsMorphological(query, limit = 100) {
-  const trimmedQuery = query.trim();
+  const trimmedQuery = normalizeSearchText(query);
 
   // 分割は元クエリ優先。接頭辞付き（お会いしたい等）は除去後も試す
   const segmentationQueries = [trimmedQuery];
@@ -497,9 +693,11 @@ async function searchWordsMorphological(query, limit = 100) {
 }
 
 export async function searchWords(query, direction = 'jp-mn', limit = 100) {
-  if (!query || query.trim() === '') return [];
+  const trimmed = normalizeSearchText(query);
+  if (!trimmed) return [];
 
-  const trimmed = query.trim();
+  await warmUpDictionarySearch();
+
   const merged = searchMergedSources(trimmed, direction, limit);
   if (merged.length > 0) {
     return merged;

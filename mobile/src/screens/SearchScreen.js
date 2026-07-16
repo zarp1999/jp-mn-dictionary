@@ -11,47 +11,87 @@ import {
   Image,
 } from 'react-native';
 import { COLORS } from '../constants/colors';
-import { searchWords } from '../utils/dictionary';
+import { searchWords, warmUpDictionarySearch } from '../utils/dictionary';
 import WordCard from '../components/WordCard';
 import ScreenHeader from '../components/ScreenHeader';
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export default function SearchScreen({ navigation, favorites, onToggleFavorite }) {
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [direction, setDirection] = useState('jp-mn');
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(true);
+  const [searchError, setSearchError] = useState(null);
 
   useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      setIsSearching(false);
-      return undefined;
-    }
-
     let cancelled = false;
-    setIsSearching(true);
-
-    searchWords(query, direction, 100)
-      .then((data) => {
+    setIsPreparing(true);
+    warmUpDictionarySearch()
+      .then(() => {
         if (!cancelled) {
-          setResults(data);
-          setIsSearching(false);
+          setIsPreparing(false);
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Dictionary warmup failed', error);
         if (!cancelled) {
-          setResults([]);
-          setIsSearching(false);
+          setIsPreparing(false);
+          setSearchError('辞書の読み込みに失敗しました。再読み込みしてください。');
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [query, direction]);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    if (!debouncedQuery.trim()) {
+      setResults([]);
+      setIsSearching(false);
+      setSearchError(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setIsSearching(true);
+    setSearchError(null);
+
+    searchWords(debouncedQuery, direction, 100)
+      .then((data) => {
+        if (!cancelled) {
+          setResults(data);
+          setIsSearching(false);
+        }
+      })
+      .catch((error) => {
+        console.error('Search failed', error);
+        if (!cancelled) {
+          setResults([]);
+          setIsSearching(false);
+          setSearchError('検索に失敗しました。もう一度お試しください。');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery, direction]);
 
   const handleChangeText = useCallback((text) => {
     setQuery(text);
+    setSearchError(null);
   }, []);
 
   const handlePressWord = useCallback((word) => {
@@ -69,6 +109,9 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
   ), [favorites, onToggleFavorite, handlePressWord]);
 
   const keyExtractor = useCallback((item) => String(item.id), []);
+
+  const showPreparing = isPreparing && !query.trim();
+  const showSearching = Boolean(query.trim()) && (isSearching || query !== debouncedQuery);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -107,6 +150,8 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
             onChangeText={handleChangeText}
             autoCorrect={false}
             autoCapitalize="none"
+            autoComplete="off"
+            textContentType="none"
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')}>
@@ -116,17 +161,26 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
         </View>
       </View>
 
-      {query.trim() === '' ? (
+      {searchError ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>{searchError}</Text>
+        </View>
+      ) : showPreparing ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator color={COLORS.primary} />
+          <Text style={[styles.emptyText, styles.preparingText]}>辞書を準備しています…</Text>
+        </View>
+      ) : !query.trim() ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>📖</Text>
           <Text style={styles.emptyText}>単語を入力して検索</Text>
           <Text style={styles.emptySubText}>18,947件の日本語・モンゴル語データ</Text>
         </View>
-      ) : isSearching ? (
+      ) : showSearching ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} />
       ) : results.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>「{query}」は見つかりませんでした</Text>
+          <Text style={styles.emptyText}>「{debouncedQuery}」は見つかりませんでした</Text>
         </View>
       ) : (
         <FlatList
@@ -198,6 +252,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingBottom: 60,
+    paddingHorizontal: 24,
   },
   emptyEmoji: {
     fontSize: 48,
@@ -207,6 +262,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textTertiary,
     marginBottom: 6,
+    textAlign: 'center',
+  },
+  preparingText: {
+    marginTop: 12,
   },
   emptySubText: {
     fontSize: 12,

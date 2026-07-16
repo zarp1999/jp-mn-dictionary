@@ -9,6 +9,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import DrawerContent from './src/components/DrawerContent';
 import { loadFavorites, toggleFavorite, saveFavorites } from './src/utils/favorites';
 import { initKuromoji } from './src/utils/kuromojiTokenizer';
+import { warmUpDictionarySearch } from './src/utils/dictionary';
 import { COLORS } from './src/constants/colors';
 
 const Drawer = createDrawerNavigator();
@@ -20,6 +21,9 @@ export default function App() {
     loadFavorites().then(setFavorites);
     initKuromoji().catch((error) => {
       console.warn('Failed to initialize Kuromoji', error);
+    });
+    warmUpDictionarySearch().catch((error) => {
+      console.warn('Failed to warm up dictionary search', error);
     });
   }, []);
 
