@@ -73,7 +73,13 @@ export default function WordDetailScreen({
         {kanjiList.length > 0 && (
           <>
             <View style={styles.divider} />
-            <KanjiSection kanjiList={kanjiList} />
+            <KanjiSection
+              kanjiList={kanjiList}
+              onKanjiPress={(character) =>
+                navigation.navigate('KanjiDetail', { character })
+              }
+            />
+
           </>
         )}
       </ScrollView>

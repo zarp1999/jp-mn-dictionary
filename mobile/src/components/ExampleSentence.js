@@ -32,21 +32,17 @@ export default function ExampleSentence({ text }) {
     };
   }, [japanese]);
 
-  const suffix = translation ? `: ${translation}` : null;
-
-  if (segments && !failed) {
-    return (
-      <View style={styles.container}>
-        <FuriganaText segments={segments} suffix={suffix} />
-      </View>
-    );
-  }
-
   return (
-    <Text style={styles.fallback}>
-      {japanese}
-      {suffix ?? ''}
-    </Text>
+    <View style={styles.container}>
+      {segments && !failed ? (
+        <FuriganaText segments={segments} />
+      ) : (
+        <Text style={styles.japanese}>{japanese}</Text>
+      )}
+      {translation ? (
+        <Text style={styles.translation}>{translation}</Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -54,10 +50,15 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 12,
   },
-  fallback: {
+  japanese: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: COLORS.textPrimary,
+  },
+  translation: {
     fontSize: 13,
     lineHeight: 20,
     color: COLORS.textSecondary,
-    marginBottom: 12,
+    marginTop: 4,
   },
 });

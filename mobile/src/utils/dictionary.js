@@ -8,6 +8,7 @@ import {
   normalizeSearchQuery,
   V2_ID_OFFSET,
 } from './translationLookup';
+import { parseExampleBlocks } from './furigana';
 
 // term_bank_1.json のフォーマット:
 // [見出し語, 読み, '', '', 数値, [訳語+例文の文字列], 数値, '']
@@ -38,12 +39,7 @@ function hydrateWord(word) {
     .filter(Boolean);
 
   word.definitions = resolveDefinitions(word.headword, word.reading, termBankDefinitions);
-  word.examples = parts[1]
-    ? parts[1]
-        .split('\n')
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : [];
+  word.examples = parts[1] ? parseExampleBlocks(parts[1]) : [];
   delete word._rawItem;
   return word;
 }

@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import FavoritesScreen from '../screens/FavoritesScreen';
 import WordDetailScreen from '../screens/WordDetailScreen';
+import KanjiDetailScreen from '../screens/KanjiDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -27,6 +28,7 @@ export default function FavoritesStack({ favorites, onToggleFavorite }) {
           />
         )}
       </Stack.Screen>
+      <Stack.Screen name="KanjiDetail" component={KanjiDetailScreen} />
     </Stack.Navigator>
   );
 }
