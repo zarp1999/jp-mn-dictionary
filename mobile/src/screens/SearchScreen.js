@@ -33,6 +33,7 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
       .then(() => {
         if (!cancelled) {
           setIsPreparing(false);
+          setSearchError(null);
         }
       })
       .catch((error) => {

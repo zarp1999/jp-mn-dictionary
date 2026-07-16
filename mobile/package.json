@@ -24,12 +24,12 @@
     "react-native-worklets": "0.5.1"
   },
   "scripts": {
-    "postinstall": "node scripts/copy-kuromoji-dict.js && node scripts/copy-kanji-bank.js",
+    "postinstall": "node scripts/copy-kuromoji-dict.js && node scripts/copy-kanji-bank.js && node scripts/copy-v2-public.js",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web",
-    "export:web": "expo export --platform web"
+    "web": "node scripts/copy-v2-public.js && expo start --web",
+    "export:web": "node scripts/copy-v2-public.js && expo export --platform web"
   },
   "private": true
 }

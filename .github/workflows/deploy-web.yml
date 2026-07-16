@@ -35,7 +35,7 @@ jobs:
         run: npm ci
 
       - name: Export web build
-        run: npx expo export --platform web
+        run: npm run export:web
         env:
           GITHUB_PAGES: "true"
 

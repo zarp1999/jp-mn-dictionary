@@ -1,19 +1,23 @@
-import rawV2Data from '../data/dictionary_mn_v2.json';
+import { Platform } from 'react-native';
 import rawTermData from '../data/term_bank_1.json';
+import staticV2Data from './v2Data';
 
 const KANJI_REGEX = /^[\u4e00-\u9fff]$/;
 export const V2_ID_OFFSET = 1_000_000;
 
-let _v2Index = null;
-let _singleKanjiTermIndex = null;
-let _singleKanjiV2Index = null;
+let _rawV2Data = null;
+let _v2LoadPromise = null;
+let _v2Unavailable = false;
 
-let _preferredV2Entries = null;
+let _v2PreferredByKey = null;
 let _v2ExactHeadwordIndex = null;
 let _v2ExactReadingIndex = null;
 let _v2SortedHeadwords = null;
 let _v2SortedReadings = null;
 let _v2WarmupPromise = null;
+
+let _singleKanjiTermIndex = null;
+let _singleKanjiV2Index = null;
 
 export function normalizeSearchText(text) {
   if (!text) {
@@ -74,19 +78,55 @@ function yieldToMain() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function getV2Index() {
-  if (!_v2Index) {
-    _v2Index = new Map();
-
-    for (const entry of rawV2Data) {
-      const key = makeLookupKey(entry.kanji, entry.furigana);
-      const existing = _v2Index.get(key);
-      if (shouldReplaceV2Entry(existing, entry)) {
-        _v2Index.set(key, entry);
-      }
-    }
+function getV2PublicUrl() {
+  if (typeof window === 'undefined') {
+    return 'dictionary_mn_v2.json';
   }
-  return _v2Index;
+  try {
+    return new URL('dictionary_mn_v2.json', window.location.href).href;
+  } catch {
+    return 'dictionary_mn_v2.json';
+  }
+}
+
+export async function loadRawV2Data() {
+  if (_rawV2Data) {
+    return _rawV2Data;
+  }
+  if (_v2Unavailable) {
+    return null;
+  }
+  if (_v2LoadPromise) {
+    return _v2LoadPromise;
+  }
+
+  _v2LoadPromise = (async () => {
+    if (Platform.OS === 'web') {
+      const response = await fetch(getV2PublicUrl());
+      if (!response.ok) {
+        throw new Error(`Failed to fetch v2 dictionary: ${response.status}`);
+      }
+      _rawV2Data = await response.json();
+    } else if (staticV2Data) {
+      _rawV2Data = staticV2Data;
+    } else {
+      throw new Error('V2 dictionary is not available on this platform');
+    }
+    return _rawV2Data;
+  })();
+
+  try {
+    return await _v2LoadPromise;
+  } catch (error) {
+    _v2Unavailable = true;
+    throw error;
+  } finally {
+    _v2LoadPromise = null;
+  }
+}
+
+export function isV2DictionaryAvailable() {
+  return Boolean(_rawV2Data) && !_v2Unavailable;
 }
 
 function getSingleKanjiTermIndex() {
@@ -111,8 +151,11 @@ function getSingleKanjiTermIndex() {
 function getSingleKanjiV2Index() {
   if (!_singleKanjiV2Index) {
     _singleKanjiV2Index = new Map();
+    if (!_rawV2Data) {
+      return _singleKanjiV2Index;
+    }
 
-    for (const entry of rawV2Data) {
+    for (const entry of _rawV2Data) {
       const kanji = entry.kanji || '';
       if (!KANJI_REGEX.test(kanji) || !entry.translation_mn?.trim()) {
         continue;
@@ -128,7 +171,20 @@ function getSingleKanjiV2Index() {
 }
 
 export function getV2Definitions(headword, reading) {
-  const entry = getV2Index().get(makeLookupKey(headword, reading));
+  if (!_v2PreferredByKey || !_rawV2Data) {
+    return [];
+  }
+
+  const key = makeLookupKey(
+    normalizeSearchText(headword),
+    normalizeSearchText(reading || ''),
+  );
+  const rawIndex = _v2PreferredByKey.get(key);
+  if (rawIndex === undefined) {
+    return [];
+  }
+
+  const entry = _rawV2Data[rawIndex];
   if (!entry?.translation_mn?.trim()) {
     return [];
   }
@@ -154,42 +210,6 @@ export function getSingleKanjiMnMeaning(character) {
   }
 
   return parseTranslationMn(v2Entry.translation_mn, character)[0] || '';
-}
-
-function getPreferredV2Entries() {
-  if (!_preferredV2Entries) {
-    const preferredEntries = [];
-    const seenKeys = new Map();
-
-    for (const entry of rawV2Data) {
-      const headword = normalizeSearchText(entry.kanji || '');
-      if (!headword || !entry.translation_mn?.trim()) {
-        continue;
-      }
-
-      const reading = normalizeSearchText(entry.furigana || '');
-      const key = makeLookupKey(headword, reading);
-      const existingIndex = seenKeys.get(key);
-      const normalizedEntry = {
-        ...entry,
-        kanji: headword,
-        furigana: reading,
-      };
-
-      if (existingIndex === undefined) {
-        seenKeys.set(key, preferredEntries.length);
-        preferredEntries.push(normalizedEntry);
-        continue;
-      }
-
-      if (shouldReplaceV2Entry(preferredEntries[existingIndex], normalizedEntry)) {
-        preferredEntries[existingIndex] = normalizedEntry;
-      }
-    }
-
-    _preferredV2Entries = preferredEntries;
-  }
-  return _preferredV2Entries;
 }
 
 function pushIndexValue(map, key, value) {
@@ -230,7 +250,7 @@ function collectPrefixFromSorted(sorted, query, limit) {
     if (!item.key.startsWith(query)) {
       break;
     }
-    matches.push(item.index);
+    matches.push(item.rawIndex);
     if (matches.length >= limit) {
       break;
     }
@@ -238,33 +258,80 @@ function collectPrefixFromSorted(sorted, query, limit) {
   return matches;
 }
 
-function buildV2SearchIndexes() {
+async function buildV2PreferredIndex() {
+  const raw = await loadRawV2Data();
+  if (!raw) {
+    return;
+  }
+  if (_v2PreferredByKey) {
+    return;
+  }
+
+  const preferredByKey = new Map();
+
+  for (let i = 0; i < raw.length; i += 1) {
+    const entry = raw[i];
+    const headword = normalizeSearchText(entry.kanji || '');
+    if (!headword || !entry.translation_mn?.trim()) {
+      continue;
+    }
+
+    const reading = normalizeSearchText(entry.furigana || '');
+    const key = makeLookupKey(headword, reading);
+    const existingIndex = preferredByKey.get(key);
+
+    if (existingIndex === undefined) {
+      preferredByKey.set(key, i);
+    } else if (shouldReplaceV2Entry(raw[existingIndex], entry)) {
+      preferredByKey.set(key, i);
+    }
+
+    if (i > 0 && i % 3000 === 0) {
+      await yieldToMain();
+    }
+  }
+
+  _v2PreferredByKey = preferredByKey;
+}
+
+async function buildV2SearchIndexes() {
   if (_v2ExactHeadwordIndex && _v2ExactReadingIndex) {
     return;
   }
 
-  const entries = getPreferredV2Entries();
+  await buildV2PreferredIndex();
+  if (!_v2PreferredByKey || !_rawV2Data) {
+    return;
+  }
+
   const exactHeadword = new Map();
   const exactReading = new Map();
   const sortedHeadwords = [];
   const sortedReadings = [];
+  let count = 0;
 
-  for (let i = 0; i < entries.length; i += 1) {
-    const entry = entries[i];
-    const headword = entry.kanji || '';
-    const reading = entry.furigana || '';
+  for (const rawIndex of _v2PreferredByKey.values()) {
+    const entry = _rawV2Data[rawIndex];
+    const headword = normalizeSearchText(entry.kanji || '');
+    const reading = normalizeSearchText(entry.furigana || '');
 
-    pushIndexValue(exactHeadword, headword, i);
-    pushIndexValue(exactReading, reading, i);
+    pushIndexValue(exactHeadword, headword, rawIndex);
+    pushIndexValue(exactReading, reading, rawIndex);
     if (headword) {
-      sortedHeadwords.push({ key: headword, index: i });
+      sortedHeadwords.push({ key: headword, rawIndex });
     }
     if (reading) {
-      sortedReadings.push({ key: reading, index: i });
+      sortedReadings.push({ key: reading, rawIndex });
+    }
+
+    count += 1;
+    if (count % 3000 === 0) {
+      await yieldToMain();
     }
   }
 
   sortedHeadwords.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  await yieldToMain();
   sortedReadings.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 
   _v2ExactHeadwordIndex = exactHeadword;
@@ -274,126 +341,95 @@ function buildV2SearchIndexes() {
 }
 
 export async function warmUpV2SearchIndexes() {
+  if (_v2Unavailable) {
+    return false;
+  }
   if (_v2ExactHeadwordIndex && _v2ExactReadingIndex) {
-    return;
+    return true;
   }
   if (_v2WarmupPromise) {
     return _v2WarmupPromise;
   }
 
   _v2WarmupPromise = (async () => {
-    if (!_preferredV2Entries) {
-      const preferredEntries = [];
-      const seenKeys = new Map();
-
-      for (let i = 0; i < rawV2Data.length; i += 1) {
-        const entry = rawV2Data[i];
-        const headword = normalizeSearchText(entry.kanji || '');
-        if (!headword || !entry.translation_mn?.trim()) {
-          continue;
-        }
-
-        const reading = normalizeSearchText(entry.furigana || '');
-        const key = makeLookupKey(headword, reading);
-        const existingIndex = seenKeys.get(key);
-        const normalizedEntry = {
-          ...entry,
-          kanji: headword,
-          furigana: reading,
-        };
-
-        if (existingIndex === undefined) {
-          seenKeys.set(key, preferredEntries.length);
-          preferredEntries.push(normalizedEntry);
-        } else if (shouldReplaceV2Entry(preferredEntries[existingIndex], normalizedEntry)) {
-          preferredEntries[existingIndex] = normalizedEntry;
-        }
-
-        if (i > 0 && i % 2000 === 0) {
-          await yieldToMain();
-        }
-      }
-
-      _preferredV2Entries = preferredEntries;
-    }
-
-    await yieldToMain();
-    buildV2SearchIndexes();
-    await yieldToMain();
+    await buildV2SearchIndexes();
+    return true;
   })();
 
   try {
-    await _v2WarmupPromise;
+    return await _v2WarmupPromise;
+  } catch (error) {
+    console.warn('V2 dictionary warmup failed', error);
+    _v2Unavailable = true;
+    return false;
   } finally {
     _v2WarmupPromise = null;
   }
 }
 
-function v2EntryToWord(entry, index) {
-  const headword = entry.kanji || '';
+function v2RawIndexToWord(rawIndex) {
+  const entry = _rawV2Data[rawIndex];
+  const headword = normalizeSearchText(entry.kanji || '');
   return {
-    id: V2_ID_OFFSET + index,
+    id: V2_ID_OFFSET + rawIndex,
     headword,
-    reading: entry.furigana || '',
+    reading: normalizeSearchText(entry.furigana || ''),
     definitions: parseTranslationMn(entry.translation_mn, headword),
     examples: [],
     source: entry.source || 'v2',
   };
 }
 
-function scoreTextMatch(text, query, baseOffset) {
-  if (!text || !text.includes(query)) return null;
-  if (text === query) return baseOffset;
-  if (text.startsWith(query)) return baseOffset + 1;
-  return baseOffset + 2;
-}
-
-function addScoredMatch(matches, seen, index, score) {
-  if (seen.has(index)) {
+function addScoredMatch(matches, seen, rawIndex, score) {
+  if (seen.has(rawIndex)) {
     return;
   }
-  seen.add(index);
-  matches.push({ index, score });
+  seen.add(rawIndex);
+  matches.push({ rawIndex, score });
 }
 
 function searchV2JapaneseIndexed(query, limit) {
-  buildV2SearchIndexes();
-  const entries = getPreferredV2Entries();
+  if (!_v2ExactHeadwordIndex || !_rawV2Data) {
+    return [];
+  }
+
   const matches = [];
   const seen = new Set();
 
-  for (const index of _v2ExactHeadwordIndex.get(query) || []) {
-    addScoredMatch(matches, seen, index, 0);
+  for (const rawIndex of _v2ExactHeadwordIndex.get(query) || []) {
+    addScoredMatch(matches, seen, rawIndex, 0);
   }
-  for (const index of _v2ExactReadingIndex.get(query) || []) {
-    addScoredMatch(matches, seen, index, 3);
+  for (const rawIndex of _v2ExactReadingIndex.get(query) || []) {
+    addScoredMatch(matches, seen, rawIndex, 3);
   }
 
-  for (const index of collectPrefixFromSorted(_v2SortedHeadwords, query, limit * 2)) {
-    if (entries[index].kanji === query) {
+  for (const rawIndex of collectPrefixFromSorted(_v2SortedHeadwords, query, limit * 2)) {
+    const headword = normalizeSearchText(_rawV2Data[rawIndex].kanji || '');
+    if (headword === query) {
       continue;
     }
-    addScoredMatch(matches, seen, index, 1);
+    addScoredMatch(matches, seen, rawIndex, 1);
   }
-  for (const index of collectPrefixFromSorted(_v2SortedReadings, query, limit * 2)) {
-    if (entries[index].furigana === query) {
+  for (const rawIndex of collectPrefixFromSorted(_v2SortedReadings, query, limit * 2)) {
+    const reading = normalizeSearchText(_rawV2Data[rawIndex].furigana || '');
+    if (reading === query) {
       continue;
     }
-    addScoredMatch(matches, seen, index, 4);
+    addScoredMatch(matches, seen, rawIndex, 4);
   }
 
   if (matches.length < limit && query.length >= 2) {
-    for (let i = 0; i < entries.length; i += 1) {
-      if (seen.has(i)) {
+    for (const rawIndex of _v2PreferredByKey.values()) {
+      if (seen.has(rawIndex)) {
         continue;
       }
-      const entry = entries[i];
-      const headword = entry.kanji || '';
-      const reading = entry.furigana || '';
+      const entry = _rawV2Data[rawIndex];
+      const headword = normalizeSearchText(entry.kanji || '');
+      const reading = normalizeSearchText(entry.furigana || '');
       if (headword.includes(query) && !headword.startsWith(query)) {
-        addScoredMatch(matches, seen, i, 2);
+        addScoredMatch(matches, seen, rawIndex, 2);
       } else if (reading.includes(query) && !reading.startsWith(query)) {
-        addScoredMatch(matches, seen, i, 5);
+        addScoredMatch(matches, seen, rawIndex, 5);
       }
       if (matches.length >= limit * 3) {
         break;
@@ -403,35 +439,37 @@ function searchV2JapaneseIndexed(query, limit) {
 
   matches.sort((a, b) => {
     if (a.score !== b.score) return a.score - b.score;
-    const aLen = (entries[a.index].kanji || '').length;
-    const bLen = (entries[b.index].kanji || '').length;
+    const aLen = normalizeSearchText(_rawV2Data[a.rawIndex].kanji || '').length;
+    const bLen = normalizeSearchText(_rawV2Data[b.rawIndex].kanji || '').length;
     if (aLen !== bLen) return aLen - bLen;
-    return a.index - b.index;
+    return a.rawIndex - b.rawIndex;
   });
 
-  return matches.slice(0, limit).map(({ index, score }) => ({
-    word: v2EntryToWord(entries[index], index),
+  return matches.slice(0, limit).map(({ rawIndex, score }) => ({
+    word: v2RawIndexToWord(rawIndex),
     score,
   }));
 }
 
 function searchV2MongolianScored(query, limit) {
-  const entries = getPreferredV2Entries();
-  const matches = [];
+  if (!_v2PreferredByKey || !_rawV2Data) {
+    return [];
+  }
 
-  for (let i = 0; i < entries.length; i += 1) {
-    const entry = entries[i];
+  const matches = [];
+  for (const rawIndex of _v2PreferredByKey.values()) {
+    const entry = _rawV2Data[rawIndex];
     const text = (entry.translation_mn || '').toLowerCase();
-    const score = scoreTextMatch(text, query, 0);
-    if (score !== null) {
-      matches.push({
-        word: v2EntryToWord(entry, i),
-        score,
-      });
-      if (matches.length >= limit * 3 && score > 0) {
-        // keep scanning a bit for exact matches, but bound work
-      }
+    if (!text.includes(query)) {
+      continue;
     }
+    let score = 2;
+    if (text === query) score = 0;
+    else if (text.startsWith(query)) score = 1;
+    matches.push({
+      word: v2RawIndexToWord(rawIndex),
+      score,
+    });
     if (matches.length >= limit * 5) {
       break;
     }
@@ -448,9 +486,14 @@ function searchV2MongolianScored(query, limit) {
   return matches.slice(0, limit);
 }
 
-export function searchV2WordsScored(query, direction = 'jp-mn', limit = 100) {
+export async function searchV2WordsScored(query, direction = 'jp-mn', limit = 100) {
   const q = normalizeSearchQuery(query, { lowerCase: direction === 'mn-jp' });
   if (!q) {
+    return [];
+  }
+
+  const ready = await warmUpV2SearchIndexes();
+  if (!ready) {
     return [];
   }
 
@@ -461,6 +504,7 @@ export function searchV2WordsScored(query, direction = 'jp-mn', limit = 100) {
   return searchV2MongolianScored(q, limit);
 }
 
-export function searchV2Words(query, direction = 'jp-mn', limit = 100) {
-  return searchV2WordsScored(query, direction, limit).map(({ word }) => word);
+export async function searchV2Words(query, direction = 'jp-mn', limit = 100) {
+  const scored = await searchV2WordsScored(query, direction, limit);
+  return scored.map(({ word }) => word);
 }

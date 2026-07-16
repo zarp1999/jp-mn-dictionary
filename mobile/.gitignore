@@ -8,6 +8,7 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+public/dictionary_mn_v2.json
 
 # Native
 .kotlin/

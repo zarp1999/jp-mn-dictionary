@@ -11,32 +11,47 @@ import {
 
 // term_bank_1.json のフォーマット:
 // [見出し語, 読み, '', '', 数値, [訳語+例文の文字列], 数値, '']
-function parseEntry(item, index) {
+function parseEntryLight(item, index) {
   const headword = normalizeSearchText(item[0] || '');
   const reading = normalizeSearchText(item[1] || '');
-  const definitionRaw = Array.isArray(item[5]) ? item[5][0] : (item[5] || '');
-
-  // 訳語（◇より前の部分）と例文（◇以降）を分離
-  const parts = definitionRaw.split('◇');
-  const termBankDefinitions = parts[0]
-    .split('\n')
-    .map(s => s.trim())
-    .filter(Boolean);
-  const definitions = resolveDefinitions(headword, reading, termBankDefinitions);
-  const examples = parts[1]
-    ? parts[1]
-        .split('\n')
-        .map(s => s.trim())
-        .filter(Boolean)
-    : [];
-
   return {
     id: index,
     headword,
     reading,
-    definitions,
-    examples,
+    _rawItem: item,
+    definitions: null,
+    examples: null,
   };
+}
+
+function hydrateWord(word) {
+  if (!word || Array.isArray(word.definitions)) {
+    return word;
+  }
+
+  const item = word._rawItem;
+  const definitionRaw = Array.isArray(item[5]) ? item[5][0] : (item[5] || '');
+  const parts = definitionRaw.split('◇');
+  const termBankDefinitions = parts[0]
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  word.definitions = resolveDefinitions(word.headword, word.reading, termBankDefinitions);
+  word.examples = parts[1]
+    ? parts[1]
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  delete word._rawItem;
+  return word;
+}
+
+function hydrateWords(words) {
+  return words.map((word) => (
+    word.id >= V2_ID_OFFSET ? word : hydrateWord(word)
+  ));
 }
 
 // 全データをパース（一度だけ実行）
@@ -48,6 +63,7 @@ let _termExactReadingIndex = null;
 let _termSortedHeadwords = null;
 let _termSortedReadings = null;
 let _termWarmupPromise = null;
+let _termReady = false;
 
 function yieldToMain() {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -55,7 +71,7 @@ function yieldToMain() {
 
 export function getAllWords() {
   if (!_allWords) {
-    _allWords = rawData.map((item, i) => parseEntry(item, i));
+    _allWords = rawData.map((item, i) => parseEntryLight(item, i));
   }
   return _allWords;
 }
@@ -66,9 +82,9 @@ async function buildAllWordsChunked() {
   }
 
   const words = [];
-  const chunkSize = 500;
+  const chunkSize = 800;
   for (let i = 0; i < rawData.length; i += 1) {
-    words.push(parseEntry(rawData[i], i));
+    words.push(parseEntryLight(rawData[i], i));
     if (i > 0 && i % chunkSize === 0) {
       await yieldToMain();
     }
@@ -197,22 +213,32 @@ function buildTermSearchIndexes() {
 }
 
 export async function warmUpDictionarySearch() {
+  if (_termReady) {
+    // V2 は失敗しても検索可能。裏で再試行はしない（既に試行済み）
+    warmUpV2SearchIndexes().catch(() => {});
+    return true;
+  }
   if (_termWarmupPromise) {
     return _termWarmupPromise;
   }
 
   _termWarmupPromise = (async () => {
-    await warmUpV2SearchIndexes();
     await buildAllWordsChunked();
     await yieldToMain();
     buildTermSearchIndexes();
     getHeadwordIndex();
     getHeadwordSet();
+    _termReady = true;
     await yieldToMain();
+    // 拡張辞書は後回し（失敗しても term_bank 検索は可能）
+    warmUpV2SearchIndexes().catch((error) => {
+      console.warn('Optional v2 warmup failed', error);
+    });
+    return true;
   })();
 
   try {
-    await _termWarmupPromise;
+    return await _termWarmupPromise;
   } finally {
     _termWarmupPromise = null;
   }
@@ -474,8 +500,9 @@ function getJapaneseMatchScore(word, query) {
 }
 
 function getMongolianMatchScore(word, query) {
+  hydrateWord(word);
   let best = null;
-  for (const def of word.definitions) {
+  for (const def of word.definitions || []) {
     const text = def.toLowerCase();
     const score = scoreTextMatch(text, query, 0);
     if (score !== null && (best === null || score < best)) {
@@ -627,7 +654,27 @@ function searchMergedSources(query, direction = 'jp-mn', limit = 100) {
   const scoredLists = [];
   for (const variant of variants) {
     scoredLists.push(searchWordsStandardScored(variant, direction, limit));
-    scoredLists.push(searchV2WordsScored(variant, direction, limit));
+  }
+
+  return mergeScoredResults(scoredLists, limit);
+}
+
+async function searchMergedSourcesWithV2(query, direction = 'jp-mn', limit = 100) {
+  const normalized = normalizeSearchText(query);
+  const variants = direction === 'jp-mn'
+    ? getQueryVariants(normalized)
+    : [normalized];
+
+  const scoredLists = [];
+  for (const variant of variants) {
+    scoredLists.push(searchWordsStandardScored(variant, direction, limit));
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const v2Matches = await searchV2WordsScored(variant, direction, limit);
+      scoredLists.push(v2Matches);
+    } catch (error) {
+      console.warn('V2 search failed', error);
+    }
   }
 
   return mergeScoredResults(scoredLists, limit);
@@ -698,13 +745,19 @@ export async function searchWords(query, direction = 'jp-mn', limit = 100) {
 
   await warmUpDictionarySearch();
 
-  const merged = searchMergedSources(trimmed, direction, limit);
+  const merged = await searchMergedSourcesWithV2(trimmed, direction, limit);
   if (merged.length > 0) {
-    return merged;
+    return hydrateWords(merged);
+  }
+
+  // V2 がまだ準備中なら term のみでも再検索（フォールバック）
+  const termOnly = searchMergedSources(trimmed, direction, limit);
+  if (termOnly.length > 0) {
+    return hydrateWords(termOnly);
   }
 
   if (direction === 'jp-mn') {
-    return searchWordsMorphological(trimmed, limit);
+    return hydrateWords(await searchWordsMorphological(trimmed, limit));
   }
 
   return [];
