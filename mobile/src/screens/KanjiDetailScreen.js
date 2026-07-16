@@ -10,21 +10,61 @@ import {
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 import { getKanjiEntry, filterKnownSimilarKanji } from '../utils/kanji';
+import { useLocale } from '../i18n/LocaleContext';
 
-function MetaRow({ label, value }) {
+function MetaChip({ label, value }) {
   if (!value) {
     return null;
   }
 
   return (
-    <View style={styles.metaRow}>
-      <Text style={styles.metaLabel}>{label}</Text>
-      <Text style={styles.metaValue}>{value}</Text>
+    <View style={styles.chip}>
+      <Text style={styles.chipLabel}>{label}</Text>
+      <Text style={styles.chipValue}>{value}</Text>
     </View>
   );
 }
 
+function ReadingBlock({ label, readings }) {
+  if (!readings || readings.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.readingBlock}>
+      <Text style={styles.readingLabel}>{label}</Text>
+      <View style={styles.readingChipRow}>
+        {readings.map((reading) => (
+          <View key={`${label}-${reading}`} style={styles.readingChip}>
+            <Text style={styles.readingChipText}>{reading}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function shortenGrade(grade, formatYear) {
+  if (!grade) {
+    return '';
+  }
+  const match = String(grade).match(/([一二三四五六七八九十\d]+)年/);
+  if (match) {
+    return formatYear(match[1]);
+  }
+  return grade;
+}
+
+function shortenRadical(radical) {
+  if (!radical) {
+    return '';
+  }
+  const first = String(radical).split(/[（(]/)[0].trim();
+  return first || radical;
+}
+
 export default function KanjiDetailScreen({ navigation, route }) {
+  const { t } = useLocale();
   const character = route.params?.character || '';
 
   const kanji = useMemo(
@@ -44,16 +84,19 @@ export default function KanjiDetailScreen({ navigation, route }) {
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => navigation.goBack()}
-            accessibilityLabel="戻る"
+            accessibilityLabel={t('back')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.empty}>漢字が見つかりません</Text>
+        <Text style={styles.empty}>{t('kanjiNotFound')}</Text>
       </SafeAreaView>
     );
   }
+
+  const gradeShort = shortenGrade(kanji.grade, (n) => t('gradeYear', n));
+  const radicalShort = shortenRadical(kanji.radical);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -66,44 +109,40 @@ export default function KanjiDetailScreen({ navigation, route }) {
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => navigation.goBack()}
-            accessibilityLabel="戻る"
+            accessibilityLabel={t('back')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.hero}>
-          <Text style={styles.character}>{kanji.character}</Text>
-          <View style={styles.metaColumn}>
-            <MetaRow label="画数" value={kanji.strokeCount} />
-            <MetaRow label="JLPT" value={kanji.jlpt} />
-            <MetaRow label="学年" value={kanji.grade} />
-            <MetaRow label="部首" value={kanji.radical} />
+        <View style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <Text style={styles.character}>{kanji.character}</Text>
+            <View style={styles.chipColumn}>
+              <View style={styles.chipWrap}>
+                <MetaChip label={t('strokes')} value={kanji.strokeCount} />
+                <MetaChip label={t('jlpt')} value={kanji.jlpt} />
+                <MetaChip label={t('grade')} value={gradeShort} />
+                <MetaChip label={t('radical')} value={radicalShort} />
+              </View>
+            </View>
           </View>
         </View>
 
         {(kanji.onYomi.length > 0 || kanji.kunYomi.length > 0) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>読み</Text>
-            {kanji.onYomi.length > 0 ? (
-              <Text style={styles.readingLine}>
-                <Text style={styles.readingLabel}>音読み: </Text>
-                {kanji.onYomi.join('、')}
-              </Text>
-            ) : null}
-            {kanji.kunYomi.length > 0 ? (
-              <Text style={styles.readingLine}>
-                <Text style={styles.readingLabel}>訓読み: </Text>
-                {kanji.kunYomi.join('、')}
-              </Text>
-            ) : null}
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>{t('readings')}</Text>
+            <ReadingBlock label={t('onYomi')} readings={kanji.onYomi} />
+            <ReadingBlock label={t('kunYomi')} readings={kanji.kunYomi} />
           </View>
         )}
 
         {kanji.meaningsMnList.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>モンゴル語の意味</Text>
+          <View style={[styles.card, styles.meaningCard]}>
+            <Text style={[styles.sectionLabel, styles.meaningLabel]}>
+              {t('mongolianMeanings')}
+            </Text>
             {kanji.meaningsMnList.map((meaning, index) => (
               <Text key={`${index}-${meaning}`} style={styles.meaningLine}>
                 {`${index + 1}. ${meaning}`}
@@ -114,7 +153,7 @@ export default function KanjiDetailScreen({ navigation, route }) {
 
         {similar.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>似ている漢字</Text>
+            <Text style={styles.outerLabel}>{t('similarKanji')}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -123,11 +162,14 @@ export default function KanjiDetailScreen({ navigation, route }) {
               {similar.map((char) => (
                 <Pressable
                   key={char}
-                  style={styles.similarChip}
+                  style={({ pressed }) => [
+                    styles.similarChip,
+                    pressed && styles.similarChipPressed,
+                  ]}
                   onPress={() =>
                     navigation.push('KanjiDetail', { character: char })
                   }
-                  accessibilityLabel={`${char}の詳細`}
+                  accessibilityLabel={t('kanjiDetailA11y', char)}
                 >
                   <Text style={styles.similarChar}>{char}</Text>
                 </Pressable>
@@ -143,19 +185,19 @@ export default function KanjiDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.bg,
   },
   scroll: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   backBtn: {
     width: 44,
@@ -172,11 +214,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textSecondary,
   },
-  hero: {
+  heroCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    marginBottom: 12,
+  },
+  heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 20,
-    marginBottom: 24,
+    gap: 16,
   },
   character: {
     fontSize: 72,
@@ -185,52 +233,94 @@ const styles = StyleSheet.create({
     lineHeight: 84,
     minWidth: 88,
   },
-  metaColumn: {
+  chipColumn: {
     flex: 1,
-    paddingTop: 12,
-    gap: 6,
+    paddingTop: 8,
   },
-  metaRow: {
+  chipWrap: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  metaLabel: {
-    fontSize: 12,
+  chip: {
+    backgroundColor: COLORS.bg,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  chipLabel: {
+    fontSize: 10,
     color: COLORS.textTertiary,
-    width: 40,
+    fontWeight: '600',
+    marginBottom: 2,
   },
-  metaValue: {
-    fontSize: 15,
+  chipValue: {
+    fontSize: 14,
     color: COLORS.textPrimary,
-    flex: 1,
+    fontWeight: '500',
   },
-  section: {
-    marginBottom: 24,
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 12,
+  },
+  meaningCard: {
+    backgroundColor: COLORS.primaryLight,
   },
   sectionLabel: {
     fontSize: 11,
     color: COLORS.textTertiary,
-    fontWeight: '500',
+    fontWeight: '600',
     letterSpacing: 0.5,
     marginBottom: 12,
     textTransform: 'uppercase',
   },
-  readingLine: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    lineHeight: 26,
-    marginBottom: 6,
+  meaningLabel: {
+    color: COLORS.primaryText,
+  },
+  readingBlock: {
+    marginBottom: 12,
   },
   readingLabel: {
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: 8,
+  },
+  readingChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  readingChip: {
+    backgroundColor: COLORS.bg,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  readingChipText: {
+    fontSize: 15,
     color: COLORS.textPrimary,
   },
   meaningLine: {
     fontSize: 16,
-    color: COLORS.textPrimary,
+    color: COLORS.primaryText,
     lineHeight: 26,
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  section: {
+    marginBottom: 8,
+  },
+  outerLabel: {
+    fontSize: 11,
+    color: COLORS.textTertiary,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    marginLeft: 4,
+    textTransform: 'uppercase',
   },
   similarRow: {
     flexDirection: 'row',
@@ -238,15 +328,21 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   similarChip: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
-    backgroundColor: COLORS.bg,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  similarChipPressed: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primary,
+  },
   similarChar: {
-    fontSize: 24,
+    fontSize: 26,
     color: COLORS.textPrimary,
   },
 });

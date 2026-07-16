@@ -1,14 +1,34 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { COLORS } from '../constants/colors';
+import { useLocale } from '../i18n/LocaleContext';
 
-function KanjiCard({ kanji, onPress }) {
+function ReadingChips({ label, readings }) {
+  if (!readings || readings.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.readingBlock}>
+      <Text style={styles.readingLabel}>{label}</Text>
+      <View style={styles.chipRow}>
+        {readings.map((reading) => (
+          <View key={`${label}-${reading}`} style={styles.readingChip}>
+            <Text style={styles.readingChipText}>{reading}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function KanjiCard({ kanji, onPress, t }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${kanji.character}の詳細`}
+      accessibilityLabel={t('kanjiDetailA11y', kanji.character)}
     >
       <View style={styles.headerRow}>
         <Text style={styles.character}>{kanji.character}</Text>
@@ -16,45 +36,39 @@ function KanjiCard({ kanji, onPress }) {
           {kanji.meaningMn ? (
             <Text
               style={styles.metaText}
-              numberOfLines={1}
+              numberOfLines={2}
               ellipsizeMode="tail"
             >
               {kanji.meaningMn}
             </Text>
-          ) : null}
-          <Text style={styles.detailHint}>詳細 →</Text>
+          ) : (
+            <Text style={styles.metaText}>{t('showMeaning')}</Text>
+          )}
         </View>
+        <Text style={styles.chevron}>›</Text>
       </View>
 
-      {kanji.onYomi.length > 0 ? (
-        <Text style={styles.readingLine}>
-          <Text style={styles.readingLabel}>音読み: </Text>
-          {kanji.onYomi.join('、')}
-        </Text>
-      ) : null}
-
-      {kanji.kunYomi.length > 0 ? (
-        <Text style={styles.readingLine}>
-          <Text style={styles.readingLabel}>訓読み: </Text>
-          {kanji.kunYomi.join('、')}
-        </Text>
-      ) : null}
+      <ReadingChips label={t('onReadingShort')} readings={kanji.onYomi} />
+      <ReadingChips label={t('kunReadingShort')} readings={kanji.kunYomi} />
     </Pressable>
   );
 }
 
 export default function KanjiSection({ kanjiList, onKanjiPress }) {
+  const { t } = useLocale();
+
   if (!kanjiList || kanjiList.length === 0) {
     return null;
   }
 
   return (
     <View style={styles.section}>
-      <Text style={styles.label}>漢字</Text>
+      <Text style={styles.label}>{t('kanji')}</Text>
       {kanjiList.map((kanji) => (
         <KanjiCard
           key={kanji.character}
           kanji={kanji}
+          t={t}
           onPress={() => onKanjiPress?.(kanji.character)}
         />
       ))}
@@ -64,29 +78,34 @@ export default function KanjiSection({ kanjiList, onKanjiPress }) {
 
 const styles = StyleSheet.create({
   section: {
-    marginTop: 8,
+    marginTop: 4,
+    marginBottom: 8,
   },
   label: {
     fontSize: 11,
     color: COLORS.textTertiary,
-    fontWeight: '500',
+    fontWeight: '600',
     letterSpacing: 0.5,
-    marginBottom: 12,
+    marginBottom: 10,
+    marginLeft: 4,
     textTransform: 'uppercase',
   },
   card: {
-    backgroundColor: COLORS.bg,
-    borderRadius: 12,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
     padding: 14,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   cardPressed: {
-    opacity: 0.7,
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primary,
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
+    alignItems: 'center',
+    marginBottom: 8,
     gap: 12,
   },
   character: {
@@ -97,26 +116,45 @@ const styles = StyleSheet.create({
   },
   meta: {
     flex: 1,
-    paddingTop: 6,
-    gap: 2,
   },
   metaText: {
-    fontSize: 12,
-    color: COLORS.textTertiary,
-  },
-  detailHint: {
-    fontSize: 12,
-    color: COLORS.primary,
-    marginTop: 2,
-  },
-  readingLine: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 18,
     color: COLORS.textSecondary,
-    lineHeight: 22,
-    marginBottom: 4,
+  },
+  chevron: {
+    fontSize: 28,
+    color: COLORS.primary,
+    lineHeight: 32,
+    marginTop: -2,
+  },
+  readingBlock: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 6,
+    gap: 8,
   },
   readingLabel: {
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textTertiary,
+    minWidth: 28,
+    marginTop: 5,
+  },
+  chipRow: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  readingChip: {
+    backgroundColor: COLORS.bg,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  readingChipText: {
+    fontSize: 13,
     color: COLORS.textPrimary,
   },
 });

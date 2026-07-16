@@ -14,13 +14,15 @@ import { COLORS } from '../constants/colors';
 import { searchWords, warmUpDictionarySearch } from '../utils/dictionary';
 import WordCard from '../components/WordCard';
 import ScreenHeader from '../components/ScreenHeader';
+import { useLocale } from '../i18n/LocaleContext';
+import { LOCALES } from '../i18n/translations';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 export default function SearchScreen({ navigation, favorites, onToggleFavorite }) {
+  const { locale, toggleLocale, t } = useLocale();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [direction, setDirection] = useState('jp-mn');
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isPreparing, setIsPreparing] = useState(true);
@@ -40,14 +42,14 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
         console.error('Dictionary warmup failed', error);
         if (!cancelled) {
           setIsPreparing(false);
-          setSearchError('辞書の読み込みに失敗しました。再読み込みしてください。');
+          setSearchError(t('dictionaryLoadFailed'));
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -69,7 +71,7 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
     setIsSearching(true);
     setSearchError(null);
 
-    searchWords(debouncedQuery, direction, 100)
+    searchWords(debouncedQuery, 'jp-mn', 100)
       .then((data) => {
         if (!cancelled) {
           setResults(data);
@@ -81,14 +83,14 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
         if (!cancelled) {
           setResults([]);
           setIsSearching(false);
-          setSearchError('検索に失敗しました。もう一度お試しください。');
+          setSearchError(t('searchFailed'));
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, direction]);
+  }, [debouncedQuery, t]);
 
   const handleChangeText = useCallback((text) => {
     setQuery(text);
@@ -118,20 +120,20 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <ScreenHeader
-          title="日モ辞典"
+          title={t('appTitle')}
           rightElement={(
             <TouchableOpacity
               style={styles.flagBtn}
-              onPress={() => setDirection(direction === 'jp-mn' ? 'mn-jp' : 'jp-mn')}
+              onPress={toggleLocale}
               accessibilityLabel={
-                direction === 'jp-mn'
-                  ? '日本語で検索。タップでモンゴル語に切り替え'
-                  : 'モンゴル語で検索。タップで日本語に切り替え'
+                locale === LOCALES.ja
+                  ? t('switchToMongolian')
+                  : t('switchToJapanese')
               }
             >
               <Image
                 source={
-                  direction === 'jp-mn'
+                  locale === LOCALES.ja
                     ? require('../../assets/images/flags/flag-jp.png')
                     : require('../../assets/images/flags/flag-mn.png')
                 }
@@ -145,7 +147,7 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder={direction === 'jp-mn' ? '日本語で検索…' : 'モンゴル語で検索…'}
+            placeholder={t('searchPlaceholder')}
             placeholderTextColor={COLORS.textTertiary}
             value={query}
             onChangeText={handleChangeText}
@@ -169,19 +171,21 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
       ) : showPreparing ? (
         <View style={styles.emptyState}>
           <ActivityIndicator color={COLORS.primary} />
-          <Text style={[styles.emptyText, styles.preparingText]}>辞書を準備しています…</Text>
+          <Text style={[styles.emptyText, styles.preparingText]}>
+            {t('dictionaryPreparing')}
+          </Text>
         </View>
       ) : !query.trim() ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>📖</Text>
-          <Text style={styles.emptyText}>単語を入力して検索</Text>
-          <Text style={styles.emptySubText}>18,947件の日本語・モンゴル語データ</Text>
+          <Text style={styles.emptyText}>{t('searchEmptyTitle')}</Text>
+          <Text style={styles.emptySubText}>{t('searchEmptySub')}</Text>
         </View>
       ) : showSearching ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} />
       ) : results.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>「{debouncedQuery}」は見つかりませんでした</Text>
+          <Text style={styles.emptyText}>{t('searchNotFound', debouncedQuery)}</Text>
         </View>
       ) : (
         <FlatList

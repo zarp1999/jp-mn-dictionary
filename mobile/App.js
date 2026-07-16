@@ -11,10 +11,11 @@ import { loadFavorites, toggleFavorite, saveFavorites } from './src/utils/favori
 import { initKuromoji } from './src/utils/kuromojiTokenizer';
 import { warmUpDictionarySearch } from './src/utils/dictionary';
 import { COLORS } from './src/constants/colors';
+import { LocaleProvider } from './src/i18n/LocaleContext';
 
 const Drawer = createDrawerNavigator();
 
-export default function App() {
+function AppNavigator() {
   const [favorites, setFavorites] = useState({});
 
   useEffect(() => {
@@ -84,5 +85,13 @@ export default function App() {
         </Drawer.Screen>
       </Drawer.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <LocaleProvider>
+      <AppNavigator />
+    </LocaleProvider>
   );
 }

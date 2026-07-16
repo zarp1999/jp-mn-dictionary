@@ -33,7 +33,7 @@ export default function ExampleSentence({ text }) {
   }, [japanese]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.card}>
       {segments && !failed ? (
         <FuriganaText segments={segments} />
       ) : (
@@ -47,8 +47,12 @@ export default function ExampleSentence({ text }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: 12,
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
   },
   japanese: {
     fontSize: 15,
@@ -59,6 +63,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     color: COLORS.textSecondary,
-    marginTop: 4,
+    marginTop: 6,
   },
 });

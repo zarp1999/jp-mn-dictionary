@@ -641,36 +641,41 @@ function searchWordsStandardScored(query, direction = 'jp-mn', limit = 100) {
   return matches.slice(0, limit);
 }
 
-function searchMergedSources(query, direction = 'jp-mn', limit = 100) {
+function searchMergedSources(query, limit = 100) {
   const normalized = normalizeSearchText(query);
-  const variants = direction === 'jp-mn'
-    ? getQueryVariants(normalized)
-    : [normalized];
-
+  const jpVariants = getQueryVariants(normalized);
   const scoredLists = [];
-  for (const variant of variants) {
-    scoredLists.push(searchWordsStandardScored(variant, direction, limit));
+
+  for (const variant of jpVariants) {
+    scoredLists.push(searchWordsStandardScored(variant, 'jp-mn', limit));
   }
+  scoredLists.push(searchWordsStandardScored(normalized, 'mn-jp', limit));
 
   return mergeScoredResults(scoredLists, limit);
 }
 
-async function searchMergedSourcesWithV2(query, direction = 'jp-mn', limit = 100) {
+async function searchMergedSourcesWithV2(query, limit = 100) {
   const normalized = normalizeSearchText(query);
-  const variants = direction === 'jp-mn'
-    ? getQueryVariants(normalized)
-    : [normalized];
-
+  const jpVariants = getQueryVariants(normalized);
   const scoredLists = [];
-  for (const variant of variants) {
-    scoredLists.push(searchWordsStandardScored(variant, direction, limit));
+
+  for (const variant of jpVariants) {
+    scoredLists.push(searchWordsStandardScored(variant, 'jp-mn', limit));
     try {
       // eslint-disable-next-line no-await-in-loop
-      const v2Matches = await searchV2WordsScored(variant, direction, limit);
+      const v2Matches = await searchV2WordsScored(variant, 'jp-mn', limit);
       scoredLists.push(v2Matches);
     } catch (error) {
-      console.warn('V2 search failed', error);
+      console.warn('V2 Japanese search failed', error);
     }
+  }
+
+  scoredLists.push(searchWordsStandardScored(normalized, 'mn-jp', limit));
+  try {
+    const v2MnMatches = await searchV2WordsScored(normalized, 'mn-jp', limit);
+    scoredLists.push(v2MnMatches);
+  } catch (error) {
+    console.warn('V2 Mongolian search failed', error);
   }
 
   return mergeScoredResults(scoredLists, limit);
@@ -735,26 +740,24 @@ async function searchWordsMorphological(query, limit = 100) {
   return [];
 }
 
-export async function searchWords(query, direction = 'jp-mn', limit = 100) {
+export async function searchWords(query, _direction = 'jp-mn', limit = 100) {
   const trimmed = normalizeSearchText(query);
   if (!trimmed) return [];
 
   await warmUpDictionarySearch();
 
-  const merged = await searchMergedSourcesWithV2(trimmed, direction, limit);
+  // 日本語・モンゴル語の両方で検索（direction は互換のため残し、無視する）
+  const merged = await searchMergedSourcesWithV2(trimmed, limit);
   if (merged.length > 0) {
     return hydrateWords(merged);
   }
 
   // V2 がまだ準備中なら term のみでも再検索（フォールバック）
-  const termOnly = searchMergedSources(trimmed, direction, limit);
+  const termOnly = searchMergedSources(trimmed, limit);
   if (termOnly.length > 0) {
     return hydrateWords(termOnly);
   }
 
-  if (direction === 'jp-mn') {
-    return hydrateWords(await searchWordsMorphological(trimmed, limit));
-  }
-
-  return [];
+  // 日本語の活用・複合語向けフォールバック
+  return hydrateWords(await searchWordsMorphological(trimmed, limit));
 }

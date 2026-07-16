@@ -2,16 +2,18 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../constants/colors';
+import { useLocale } from '../i18n/LocaleContext';
 
 export default function ScreenHeader({ title, rightElement, compact = false }) {
   const navigation = useNavigation();
+  const { t } = useLocale();
 
   return (
     <View style={[styles.titleRow, compact && styles.titleRowCompact]}>
       <TouchableOpacity
         style={styles.menuBtn}
         onPress={() => navigation.openDrawer()}
-        accessibilityLabel="メニューを開く"
+        accessibilityLabel={t('openMenu')}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
       >
         <Text style={styles.menuIcon}>☰</Text>
@@ -50,7 +52,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   rightSlot: {
-    width: 56,
+    minWidth: 56,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },

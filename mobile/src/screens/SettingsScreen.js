@@ -9,55 +9,60 @@ import {
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 import ScreenHeader from '../components/ScreenHeader';
+import { useLocale } from '../i18n/LocaleContext';
 
 export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
+  const { t } = useLocale();
+
   const handleClearFavorites = () => {
     Alert.alert(
-      'お気に入りをリセット',
-      'すべてのお気に入りを削除しますか？',
+      t('settingsResetTitle'),
+      t('settingsResetMessage'),
       [
-        { text: 'キャンセル', style: 'cancel' },
-        { text: '削除', style: 'destructive', onPress: onClearFavorites },
-      ]
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('delete'), style: 'destructive', onPress: onClearFavorites },
+      ],
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <ScreenHeader title="設定" compact />
+        <ScreenHeader title={t('settingsTitle')} compact />
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>辞書情報</Text>
+        <Text style={styles.sectionLabel}>{t('settingsDictionaryInfo')}</Text>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>辞書名</Text>
-            <Text style={styles.rowValue}>日・モンゴル語辞典</Text>
+            <Text style={styles.rowLabel}>{t('settingsDictionaryName')}</Text>
+            <Text style={styles.rowValue}>{t('settingsDictionaryNameValue')}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>収録数</Text>
-            <Text style={styles.rowValue}>18,947語</Text>
+            <Text style={styles.rowLabel}>{t('settingsEntryCount')}</Text>
+            <Text style={styles.rowValue}>{t('settingsEntryCountValue')}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>出典</Text>
-            <Text style={styles.rowValue}>東北大学・栗林均</Text>
+            <Text style={styles.rowLabel}>{t('settingsSource')}</Text>
+            <Text style={styles.rowValue}>{t('settingsSourceValue')}</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>データ</Text>
+        <Text style={styles.sectionLabel}>{t('settingsData')}</Text>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>お気に入り件数</Text>
-            <Text style={styles.rowValue}>{favoritesCount}件</Text>
+            <Text style={styles.rowLabel}>{t('settingsFavoritesCount')}</Text>
+            <Text style={styles.rowValue}>{t('favoritesCount', favoritesCount)}</Text>
           </View>
           <View style={styles.divider} />
           <TouchableOpacity style={styles.row} onPress={handleClearFavorites}>
-            <Text style={[styles.rowLabel, styles.danger]}>お気に入りをリセット</Text>
+            <Text style={[styles.rowLabel, styles.danger]}>
+              {t('settingsResetFavorites')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -111,6 +116,9 @@ const styles = StyleSheet.create({
   rowValue: {
     fontSize: 15,
     color: COLORS.textSecondary,
+    flexShrink: 1,
+    textAlign: 'right',
+    marginLeft: 12,
   },
   divider: {
     height: 0.5,

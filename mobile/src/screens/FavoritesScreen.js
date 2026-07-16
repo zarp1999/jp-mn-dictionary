@@ -9,8 +9,10 @@ import {
 import { COLORS } from '../constants/colors';
 import WordCard from '../components/WordCard';
 import ScreenHeader from '../components/ScreenHeader';
+import { useLocale } from '../i18n/LocaleContext';
 
 export default function FavoritesScreen({ navigation, favorites, onToggleFavorite }) {
+  const { t } = useLocale();
   const favoriteList = Object.values(favorites);
 
   const handlePressWord = useCallback((word) => {
@@ -20,18 +22,18 @@ export default function FavoritesScreen({ navigation, favorites, onToggleFavorit
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <ScreenHeader title="お気に入り" compact />
+        <ScreenHeader title={t('favoritesTitle')} compact />
       </View>
 
       {favoriteList.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>⭐</Text>
-          <Text style={styles.emptyText}>お気に入りはまだありません</Text>
-          <Text style={styles.emptySubText}>検索画面で☆をタップして追加できます</Text>
+          <Text style={styles.emptyText}>{t('favoritesEmpty')}</Text>
+          <Text style={styles.emptySubText}>{t('favoritesEmptySub')}</Text>
         </View>
       ) : (
         <>
-          <Text style={styles.count}>{favoriteList.length}件</Text>
+          <Text style={styles.count}>{t('favoritesCount', favoriteList.length)}</Text>
           <FlatList
             data={favoriteList}
             keyExtractor={(item) => String(item.id)}

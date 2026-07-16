@@ -2,17 +2,20 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { COLORS } from '../constants/colors';
-
-const MENU_ITEMS = [
-  { name: 'Search', label: '検索', icon: '🔍' },
-  { name: 'Favorites', label: 'お気に入り', icon: '⭐' },
-  { name: 'Settings', label: '設定', icon: '⚙️' },
-];
+import { useLocale } from '../i18n/LocaleContext';
 
 export default function DrawerContent({ state, navigation, favoritesCount }) {
+  const { t } = useLocale();
+
+  const menuItems = [
+    { name: 'Search', label: t('navSearch'), icon: '🔍' },
+    { name: 'Favorites', label: t('navFavorites'), icon: '⭐' },
+    { name: 'Settings', label: t('navSettings'), icon: '⚙️' },
+  ];
+
   return (
     <DrawerContentScrollView contentContainerStyle={styles.container}>
-      {MENU_ITEMS.map((item, index) => {
+      {menuItems.map((item, index) => {
         const active = state.index === index;
 
         return (
