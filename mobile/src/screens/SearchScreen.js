@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,98 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { COLORS } from '../constants/colors';
 import { searchWords, warmUpDictionarySearch } from '../utils/dictionary';
 import WordCard from '../components/WordCard';
 import ScreenHeader from '../components/ScreenHeader';
 import { useLocale } from '../i18n/LocaleContext';
 import { LOCALES } from '../i18n/translations';
+import { useTheme } from '../theme/ThemeContext';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+function createStyles(colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    header: {
+      backgroundColor: colors.white,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 14,
+      borderBottomWidth: 0.5,
+      borderBottomColor: colors.border,
+    },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.bg,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      gap: 8,
+      borderWidth: 0.5,
+      borderColor: colors.border,
+    },
+    searchIcon: {
+      fontSize: 16,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    clearBtn: {
+      color: colors.textTertiary,
+      fontSize: 16,
+    },
+    flagBtn: {
+      borderRadius: 8,
+      padding: 4,
+      borderWidth: 0.5,
+      borderColor: colors.border,
+      backgroundColor: colors.bg,
+    },
+    flagImage: {
+      width: 48,
+      height: 32,
+      borderRadius: 4,
+    },
+    list: {
+      paddingBottom: 20,
+    },
+    emptyState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingBottom: 60,
+      paddingHorizontal: 24,
+    },
+    emptyEmoji: {
+      fontSize: 48,
+      marginBottom: 12,
+    },
+    emptyText: {
+      fontSize: 15,
+      color: colors.textTertiary,
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    preparingText: {
+      marginTop: 12,
+    },
+    emptySubText: {
+      fontSize: 12,
+      color: colors.textTertiary,
+    },
+  });
+}
+
 export default function SearchScreen({ navigation, favorites, onToggleFavorite }) {
   const { locale, toggleLocale, t } = useLocale();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -148,7 +229,7 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
           <TextInput
             style={styles.searchInput}
             placeholder={t('searchPlaceholder')}
-            placeholderTextColor={COLORS.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={query}
             onChangeText={handleChangeText}
             autoCorrect={false}
@@ -170,7 +251,7 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
         </View>
       ) : showPreparing ? (
         <View style={styles.emptyState}>
-          <ActivityIndicator color={COLORS.primary} />
+          <ActivityIndicator color={colors.primary} />
           <Text style={[styles.emptyText, styles.preparingText]}>
             {t('dictionaryPreparing')}
           </Text>
@@ -182,7 +263,7 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
           <Text style={styles.emptySubText}>{t('searchEmptySub')}</Text>
         </View>
       ) : showSearching ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} />
+        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
       ) : results.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>{t('searchNotFound', debouncedQuery)}</Text>
@@ -200,80 +281,3 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  header: {
-    backgroundColor: COLORS.white,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.bg,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-  },
-  searchIcon: {
-    fontSize: 16,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.textPrimary,
-  },
-  clearBtn: {
-    color: COLORS.textTertiary,
-    fontSize: 16,
-  },
-  flagBtn: {
-    borderRadius: 8,
-    padding: 4,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.bg,
-  },
-  flagImage: {
-    width: 48,
-    height: 32,
-    borderRadius: 4,
-  },
-  list: {
-    paddingBottom: 20,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 60,
-    paddingHorizontal: 24,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: COLORS.textTertiary,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  preparingText: {
-    marginTop: 12,
-  },
-  emptySubText: {
-    fontSize: 12,
-    color: COLORS.textTertiary,
-  },
-});

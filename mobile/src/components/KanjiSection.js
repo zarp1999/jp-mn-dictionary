@@ -1,9 +1,94 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { COLORS } from '../constants/colors';
 import { useLocale } from '../i18n/LocaleContext';
+import { useTheme } from '../theme/ThemeContext';
 
-function ReadingChips({ label, readings }) {
+function createStyles(colors) {
+  return StyleSheet.create({
+    section: {
+      marginTop: 4,
+      marginBottom: 8,
+    },
+    label: {
+      fontSize: 11,
+      color: colors.textTertiary,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+      marginBottom: 10,
+      marginLeft: 4,
+      textTransform: 'uppercase',
+    },
+    card: {
+      backgroundColor: colors.white,
+      borderRadius: 16,
+      padding: 14,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cardPressed: {
+      backgroundColor: colors.primaryLight,
+      borderColor: colors.primary,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+      gap: 12,
+    },
+    character: {
+      fontSize: 36,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      lineHeight: 40,
+    },
+    meta: {
+      flex: 1,
+    },
+    metaText: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: colors.textSecondary,
+    },
+    chevron: {
+      fontSize: 28,
+      color: colors.primary,
+      lineHeight: 32,
+      marginTop: -2,
+    },
+    readingBlock: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginTop: 6,
+      gap: 8,
+    },
+    readingLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textTertiary,
+      minWidth: 28,
+      marginTop: 5,
+    },
+    chipRow: {
+      flex: 1,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    readingChip: {
+      backgroundColor: colors.bg,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    readingChipText: {
+      fontSize: 13,
+      color: colors.textPrimary,
+    },
+  });
+}
+
+function ReadingChips({ label, readings, styles }) {
   if (!readings || readings.length === 0) {
     return null;
   }
@@ -22,7 +107,7 @@ function ReadingChips({ label, readings }) {
   );
 }
 
-function KanjiCard({ kanji, onPress, t }) {
+function KanjiCard({ kanji, onPress, t, styles }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -48,14 +133,16 @@ function KanjiCard({ kanji, onPress, t }) {
         <Text style={styles.chevron}>›</Text>
       </View>
 
-      <ReadingChips label={t('onReadingShort')} readings={kanji.onYomi} />
-      <ReadingChips label={t('kunReadingShort')} readings={kanji.kunYomi} />
+      <ReadingChips label={t('onReadingShort')} readings={kanji.onYomi} styles={styles} />
+      <ReadingChips label={t('kunReadingShort')} readings={kanji.kunYomi} styles={styles} />
     </Pressable>
   );
 }
 
 export default function KanjiSection({ kanjiList, onKanjiPress }) {
   const { t } = useLocale();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (!kanjiList || kanjiList.length === 0) {
     return null;
@@ -69,92 +156,10 @@ export default function KanjiSection({ kanjiList, onKanjiPress }) {
           key={kanji.character}
           kanji={kanji}
           t={t}
+          styles={styles}
           onPress={() => onKanjiPress?.(kanji.character)}
         />
       ))}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  section: {
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 11,
-    color: COLORS.textTertiary,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-    marginLeft: 4,
-    textTransform: 'uppercase',
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  cardPressed: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: COLORS.primary,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 12,
-  },
-  character: {
-    fontSize: 36,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    lineHeight: 40,
-  },
-  meta: {
-    flex: 1,
-  },
-  metaText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: COLORS.textSecondary,
-  },
-  chevron: {
-    fontSize: 28,
-    color: COLORS.primary,
-    lineHeight: 32,
-    marginTop: -2,
-  },
-  readingBlock: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 6,
-    gap: 8,
-  },
-  readingLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textTertiary,
-    minWidth: 28,
-    marginTop: 5,
-  },
-  chipRow: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  readingChip: {
-    backgroundColor: COLORS.bg,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  readingChipText: {
-    fontSize: 13,
-    color: COLORS.textPrimary,
-  },
-});

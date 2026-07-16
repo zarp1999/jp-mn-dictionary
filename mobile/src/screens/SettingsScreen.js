@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,87 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Alert,
+  Switch,
 } from 'react-native';
-import { COLORS } from '../constants/colors';
 import ScreenHeader from '../components/ScreenHeader';
 import { useLocale } from '../i18n/LocaleContext';
+import { useTheme, THEMES } from '../theme/ThemeContext';
+
+function createStyles(colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    header: {
+      backgroundColor: colors.white,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 14,
+      borderBottomWidth: 0.5,
+      borderBottomColor: colors.border,
+    },
+    section: {
+      marginTop: 24,
+      paddingHorizontal: 16,
+    },
+    sectionLabel: {
+      fontSize: 12,
+      color: colors.textTertiary,
+      fontWeight: '500',
+      letterSpacing: 0.5,
+      marginBottom: 8,
+      textTransform: 'uppercase',
+    },
+    card: {
+      backgroundColor: colors.white,
+      borderRadius: 12,
+      borderWidth: 0.5,
+      borderColor: colors.border,
+      overflow: 'hidden',
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+    },
+    rowLabel: {
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    rowValue: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      flexShrink: 1,
+      textAlign: 'right',
+      marginLeft: 12,
+    },
+    divider: {
+      height: 0.5,
+      backgroundColor: colors.border,
+      marginLeft: 14,
+    },
+    danger: {
+      color: colors.danger,
+    },
+    themeControl: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+  });
+}
 
 export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
   const { t } = useLocale();
+  const { colors, isDark, setTheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const handleThemeToggle = (enabled) => {
+    setTheme(enabled ? THEMES.dark : THEMES.light);
+  };
 
   const handleClearFavorites = () => {
     Alert.alert(
@@ -29,6 +103,30 @@ export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <ScreenHeader title={t('settingsTitle')} compact />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>{t('settingsAppearance')}</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>{t('settingsTheme')}</Text>
+            <View style={styles.themeControl}>
+              <Text style={styles.rowValue}>
+                {isDark ? t('themeDark') : t('themeLight')}
+              </Text>
+              <Switch
+                value={isDark}
+                onValueChange={handleThemeToggle}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.white}
+                ios_backgroundColor={colors.border}
+                accessibilityLabel={
+                  isDark ? t('themeDark') : t('themeLight')
+                }
+              />
+            </View>
+          </View>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -69,63 +167,3 @@ export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  header: {
-    backgroundColor: COLORS.white,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
-  },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    color: COLORS.textTertiary,
-    fontWeight: '500',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  rowLabel: {
-    fontSize: 15,
-    color: COLORS.textPrimary,
-  },
-  rowValue: {
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    flexShrink: 1,
-    textAlign: 'right',
-    marginLeft: 12,
-  },
-  divider: {
-    height: 0.5,
-    backgroundColor: COLORS.border,
-    marginLeft: 14,
-  },
-  danger: {
-    color: '#D0312D',
-  },
-});

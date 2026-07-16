@@ -10,12 +10,13 @@ import DrawerContent from './src/components/DrawerContent';
 import { loadFavorites, toggleFavorite, saveFavorites } from './src/utils/favorites';
 import { initKuromoji } from './src/utils/kuromojiTokenizer';
 import { warmUpDictionarySearch } from './src/utils/dictionary';
-import { COLORS } from './src/constants/colors';
 import { LocaleProvider } from './src/i18n/LocaleContext';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 const Drawer = createDrawerNavigator();
 
 function AppNavigator() {
+  const { colors, isDark } = useTheme();
   const [favorites, setFavorites] = useState({});
 
   useEffect(() => {
@@ -42,7 +43,10 @@ function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.white}
+      />
       <Drawer.Navigator
         drawerContent={(props) => (
           <DrawerContent {...props} favoritesCount={favoritesCount} />
@@ -52,9 +56,9 @@ function AppNavigator() {
           drawerType: 'front',
           drawerStyle: {
             width: 260,
-            backgroundColor: COLORS.white,
+            backgroundColor: colors.white,
           },
-          overlayColor: COLORS.overlay,
+          overlayColor: colors.overlay,
         }}
       >
         <Drawer.Screen name="Search">
@@ -90,8 +94,10 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <LocaleProvider>
-      <AppNavigator />
-    </LocaleProvider>
+    <ThemeProvider>
+      <LocaleProvider>
+        <AppNavigator />
+      </LocaleProvider>
+    </ThemeProvider>
   );
 }

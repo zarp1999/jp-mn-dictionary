@@ -1,10 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS } from '../constants/colors';
 import FuriganaText from './FuriganaText';
 import { getFuriganaSegments, parseExample } from '../utils/furigana';
+import { useTheme } from '../theme/ThemeContext';
+
+function createStyles(colors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.white,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      marginBottom: 10,
+    },
+    japanese: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: colors.textPrimary,
+    },
+    translation: {
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.textSecondary,
+      marginTop: 6,
+    },
+  });
+}
 
 export default function ExampleSentence({ text }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { japanese, translation } = parseExample(text);
   const [segments, setSegments] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -45,24 +70,3 @@ export default function ExampleSentence({ text }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 10,
-  },
-  japanese: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: COLORS.textPrimary,
-  },
-  translation: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: COLORS.textSecondary,
-    marginTop: 6,
-  },
-});

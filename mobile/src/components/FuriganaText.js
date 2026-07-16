@@ -1,10 +1,46 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 const FURIGANA_LINE_HEIGHT = 11;
 
+function createStyles(colors) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'flex-end',
+    },
+    ruby: {
+      alignItems: 'center',
+      marginRight: 1,
+    },
+    furigana: {
+      fontSize: 9,
+      lineHeight: FURIGANA_LINE_HEIGHT,
+      color: colors.textTertiary,
+      textAlign: 'center',
+    },
+    furiganaSpacer: {
+      height: FURIGANA_LINE_HEIGHT,
+    },
+    base: {
+      fontSize: 15,
+      lineHeight: 20,
+      color: colors.textPrimary,
+    },
+    suffix: {
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.textSecondary,
+    },
+  });
+}
+
 export default function FuriganaText({ segments, suffix, baseStyle, furiganaStyle, suffixStyle }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (!segments || segments.length === 0) {
     return null;
   }
@@ -28,34 +64,3 @@ export default function FuriganaText({ segments, suffix, baseStyle, furiganaStyl
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-end',
-  },
-  ruby: {
-    alignItems: 'center',
-    marginRight: 1,
-  },
-  furigana: {
-    fontSize: 9,
-    lineHeight: FURIGANA_LINE_HEIGHT,
-    color: COLORS.textTertiary,
-    textAlign: 'center',
-  },
-  furiganaSpacer: {
-    height: FURIGANA_LINE_HEIGHT,
-  },
-  base: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: COLORS.textPrimary,
-  },
-  suffix: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: COLORS.textSecondary,
-  },
-});

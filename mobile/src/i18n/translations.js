@@ -33,6 +33,11 @@ const ja = {
   settingsEntryCountValue: '18,947語',
   settingsSource: '出典',
   settingsSourceValue: '東北大学・栗林均',
+  settingsAppearance: '表示',
+  settingsTheme: 'テーマ',
+  themeLight: 'ライト',
+  themeDark: 'ダーク',
+
   settingsData: 'データ',
   settingsFavoritesCount: 'お気に入り件数',
   settingsResetFavorites: 'お気に入りをリセット',
@@ -96,6 +101,11 @@ const mn = {
   settingsEntryCountValue: '18,947',
   settingsSource: 'Эх сурвалж',
   settingsSourceValue: 'Тохоку их сургууль · Курибаяши Хитоши',
+  settingsAppearance: 'Харагдац',
+  settingsTheme: 'Загвар',
+  themeLight: 'Гэрэл',
+  themeDark: 'Харанхуй',
+
   settingsData: 'Өгөгдөл',
   settingsFavoritesCount: 'Дуртай үгийн тоо',
   settingsResetFavorites: 'Дуртайг цэвэрлэх',
