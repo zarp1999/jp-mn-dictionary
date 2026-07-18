@@ -4,6 +4,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import SearchScreen from '../screens/SearchScreen';
 import WordDetailScreen from '../screens/WordDetailScreen';
 import KanjiDetailScreen from '../screens/KanjiDetailScreen';
+import KanjiSearchScreen from '../screens/KanjiSearchScreen';
+import KanjiWordListScreen from '../screens/KanjiWordListScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,6 +31,16 @@ export default function SearchStack({ favorites, onToggleFavorite }) {
         )}
       </Stack.Screen>
       <Stack.Screen name="KanjiDetail" component={KanjiDetailScreen} />
+      <Stack.Screen name="KanjiSearch" component={KanjiSearchScreen} />
+      <Stack.Screen name="KanjiWordList">
+        {(props) => (
+          <KanjiWordListScreen
+            {...props}
+            favorites={favorites}
+            onToggleFavorite={onToggleFavorite}
+          />
+        )}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }

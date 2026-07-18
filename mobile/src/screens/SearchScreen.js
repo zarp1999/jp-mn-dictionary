@@ -8,13 +8,11 @@ import {
   StyleSheet,
   SafeAreaView,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { searchWords, warmUpDictionarySearch } from '../utils/dictionary';
 import WordCard from '../components/WordCard';
 import ScreenHeader from '../components/ScreenHeader';
 import { useLocale } from '../i18n/LocaleContext';
-import { LOCALES } from '../i18n/translations';
 import { useTheme } from '../theme/ThemeContext';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -56,17 +54,21 @@ function createStyles(colors) {
       color: colors.textTertiary,
       fontSize: 16,
     },
-    flagBtn: {
+    kanjiHeaderBtn: {
+      minWidth: 44,
+      height: 40,
       borderRadius: 8,
-      padding: 4,
+      paddingHorizontal: 10,
       borderWidth: 0.5,
       borderColor: colors.border,
       backgroundColor: colors.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    flagImage: {
-      width: 48,
-      height: 32,
-      borderRadius: 4,
+    kanjiHeaderBtnText: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.primaryText,
     },
     list: {
       paddingBottom: 20,
@@ -99,7 +101,7 @@ function createStyles(colors) {
 }
 
 export default function SearchScreen({ navigation, favorites, onToggleFavorite }) {
-  const { locale, toggleLocale, t } = useLocale();
+  const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [query, setQuery] = useState('');
@@ -182,6 +184,10 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
     navigation.navigate('WordDetail', { word });
   }, [navigation]);
 
+  const handleOpenKanjiSearch = useCallback(() => {
+    navigation.navigate('KanjiSearch');
+  }, [navigation]);
+
   const renderItem = useCallback(({ item, index }) => (
     <WordCard
       word={item}
@@ -204,22 +210,11 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
           title={t('appTitle')}
           rightElement={(
             <TouchableOpacity
-              style={styles.flagBtn}
-              onPress={toggleLocale}
-              accessibilityLabel={
-                locale === LOCALES.ja
-                  ? t('switchToMongolian')
-                  : t('switchToJapanese')
-              }
+              style={styles.kanjiHeaderBtn}
+              onPress={handleOpenKanjiSearch}
+              accessibilityLabel={t('openKanjiSearch')}
             >
-              <Image
-                source={
-                  locale === LOCALES.ja
-                    ? require('../../assets/images/flags/flag-jp.png')
-                    : require('../../assets/images/flags/flag-mn.png')
-                }
-                style={styles.flagImage}
-              />
+              <Text style={styles.kanjiHeaderBtnText}>部</Text>
             </TouchableOpacity>
           )}
         />

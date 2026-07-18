@@ -9,6 +9,8 @@ import {
   V2_ID_OFFSET,
 } from './translationLookup';
 import { parseExampleBlocks } from './furigana';
+import { parseKanjiPositionQuery } from './kanjiPositionQuery';
+import { searchWordsByKanjiPosition } from './kanjiWordSearch';
 
 // term_bank_1.json のフォーマット:
 // [見出し語, 読み, '', '', 数値, [訳語+例文の文字列], 数値, '']
@@ -44,7 +46,7 @@ function hydrateWord(word) {
   return word;
 }
 
-function hydrateWords(words) {
+export function hydrateWords(words) {
   return words.map((word) => (
     word.id >= V2_ID_OFFSET ? word : hydrateWord(word)
   ));
@@ -743,6 +745,15 @@ async function searchWordsMorphological(query, limit = 100) {
 export async function searchWords(query, _direction = 'jp-mn', limit = 100) {
   const trimmed = normalizeSearchText(query);
   if (!trimmed) return [];
+
+  const kanjiPositionQuery = parseKanjiPositionQuery(trimmed);
+  if (kanjiPositionQuery) {
+    return searchWordsByKanjiPosition(
+      kanjiPositionQuery.kanji,
+      kanjiPositionQuery.position,
+      limit,
+    );
+  }
 
   await warmUpDictionarySearch();
 

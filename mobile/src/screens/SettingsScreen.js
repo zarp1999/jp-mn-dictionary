@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Alert,
   Switch,
+  Image,
 } from 'react-native';
 import ScreenHeader from '../components/ScreenHeader';
 import { useLocale } from '../i18n/LocaleContext';
+import { LOCALES } from '../i18n/translations';
 import { useTheme, THEMES } from '../theme/ThemeContext';
 
 function createStyles(colors) {
@@ -76,11 +78,21 @@ function createStyles(colors) {
       alignItems: 'center',
       gap: 10,
     },
+    languageControl: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    flagImage: {
+      width: 36,
+      height: 24,
+      borderRadius: 4,
+    },
   });
 }
 
 export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
-  const { t } = useLocale();
+  const { locale, toggleLocale, t } = useLocale();
   const { colors, isDark, setTheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -126,6 +138,31 @@ export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
               />
             </View>
           </View>
+          <View style={styles.divider} />
+          <TouchableOpacity
+            style={styles.row}
+            onPress={toggleLocale}
+            accessibilityLabel={
+              locale === LOCALES.ja
+                ? t('switchToMongolian')
+                : t('switchToJapanese')
+            }
+          >
+            <Text style={styles.rowLabel}>{t('settingsLanguage')}</Text>
+            <View style={styles.languageControl}>
+              <Image
+                source={
+                  locale === LOCALES.ja
+                    ? require('../../assets/images/flags/flag-jp.png')
+                    : require('../../assets/images/flags/flag-mn.png')
+                }
+                style={styles.flagImage}
+              />
+              <Text style={styles.rowValue}>
+                {locale === LOCALES.ja ? t('languageJa') : t('languageMn')}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
 

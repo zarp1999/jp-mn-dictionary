@@ -17,15 +17,15 @@ export const THEMES = {
 const STORAGE_KEY = '@jp_mn_theme';
 
 const ThemeContext = createContext({
-  theme: THEMES.light,
-  colors: getColorsForTheme(THEMES.light),
+  theme: THEMES.dark,
+  colors: getColorsForTheme(THEMES.dark),
   setTheme: () => {},
   toggleTheme: () => {},
-  isDark: false,
+  isDark: true,
 });
 
 export function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(THEMES.light);
+  const [theme, setThemeState] = useState(THEMES.dark);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)

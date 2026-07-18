@@ -9,6 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { getKanjiEntry, filterKnownSimilarKanji } from '../utils/kanji';
+import { KANJI_WORD_POSITION } from '../utils/kanjiWordSearch';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -176,6 +177,31 @@ function createStyles(colors) {
       fontSize: 26,
       color: colors.textPrimary,
     },
+    wordSearchRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    wordSearchBtn: {
+      flex: 1,
+      minHeight: 52,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 8,
+    },
+    wordSearchBtnPressed: {
+      backgroundColor: colors.primaryLight,
+      borderColor: colors.primary,
+    },
+    wordSearchBtnText: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      letterSpacing: 1,
+    },
   });
 }
 
@@ -267,6 +293,31 @@ export default function KanjiDetailScreen({ navigation, route }) {
   const gradeShort = shortenGrade(kanji.grade, (n) => t('gradeYear', n));
   const radicalShort = shortenRadical(kanji.radical);
 
+  const handleOpenWordSearch = (position) => {
+    navigation.navigate('KanjiWordList', { character: kanji.character, position });
+  };
+
+  const wordSearchButtons = [
+    {
+      key: 'prefix',
+      position: KANJI_WORD_POSITION.prefix,
+      label: t('kanjiWordSearchBtnPrefix', kanji.character),
+      a11y: t('kanjiWordSearchBtnPrefixA11y', kanji.character),
+    },
+    {
+      key: 'middle',
+      position: KANJI_WORD_POSITION.middle,
+      label: t('kanjiWordSearchBtnMiddle', kanji.character),
+      a11y: t('kanjiWordSearchBtnMiddleA11y', kanji.character),
+    },
+    {
+      key: 'suffix',
+      position: KANJI_WORD_POSITION.suffix,
+      label: t('kanjiWordSearchBtnSuffix', kanji.character),
+      a11y: t('kanjiWordSearchBtnSuffixA11y', kanji.character),
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -319,6 +370,25 @@ export default function KanjiDetailScreen({ navigation, route }) {
             ))}
           </View>
         )}
+
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>{t('kanjiWordSearchSection')}</Text>
+          <View style={styles.wordSearchRow}>
+            {wordSearchButtons.map(({ key, position, label, a11y }) => (
+              <Pressable
+                key={key}
+                style={({ pressed }) => [
+                  styles.wordSearchBtn,
+                  pressed && styles.wordSearchBtnPressed,
+                ]}
+                onPress={() => handleOpenWordSearch(position)}
+                accessibilityLabel={a11y}
+              >
+                <Text style={styles.wordSearchBtnText}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
 
         {similar.length > 0 && (
           <View style={styles.section}>

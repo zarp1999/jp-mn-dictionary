@@ -35,6 +35,9 @@ const ja = {
   settingsSourceValue: '東北大学・栗林均',
   settingsAppearance: '表示',
   settingsTheme: 'テーマ',
+  settingsLanguage: 'アプリ言語',
+  languageJa: '日本語',
+  languageMn: 'モンゴル語',
   themeLight: 'ライト',
   themeDark: 'ダーク',
 
@@ -69,6 +72,29 @@ const ja = {
   mongolianMeanings: 'モンゴル語の意味',
   similarKanji: '似ている漢字',
   gradeYear: (n) => `${n}年`,
+
+  kanjiWordSearchSection: 'この漢字を含む語',
+  kanjiWordSearchBtnPrefix: (char) => `${char}_`,
+  kanjiWordSearchBtnMiddle: (char) => `_${char}_`,
+  kanjiWordSearchBtnSuffix: (char) => `_${char}`,
+  kanjiWordSearchBtnPrefixA11y: (char) => `${char}で始まる語を検索`,
+  kanjiWordSearchBtnMiddleA11y: (char) => `${char}を含む語を検索`,
+  kanjiWordSearchBtnSuffixA11y: (char) => `${char}で終わる語を検索`,
+  kanjiWordSearchTitlePrefix: (char) => `${char}で始まる語`,
+  kanjiWordSearchTitleMiddle: (char) => `${char}を含む語`,
+  kanjiWordSearchTitleSuffix: (char) => `${char}で終わる語`,
+  kanjiWordSearchEmpty: '該当する語がありません',
+  kanjiWordSearchCount: (n) => `${n}件`,
+
+  kanjiSearchTitle: '部首・画数で検索',
+  openKanjiSearch: '部首・画数で漢字を探す',
+  strokeAny: 'すべて',
+  strokeCountOption: (n) => `${n}画`,
+  kanjiSearchHint: '画数または部首を選ぶと、漢字の候補が表示されます。部首は複数選べます。',
+  kanjiSearchEmpty: '条件に合う漢字がありません',
+  kanjiSearchResultCount: (n) => `${n}件`,
+  clearFilters: '条件をクリア',
+  radicalChipA11y: (char) => `部首 ${char}`,
 };
 
 const mn = {
@@ -103,6 +129,9 @@ const mn = {
   settingsSourceValue: 'Тохоку их сургууль · Курибаяши Хитоши',
   settingsAppearance: 'Харагдац',
   settingsTheme: 'Загвар',
+  settingsLanguage: 'Аппын хэл',
+  languageJa: 'Япон',
+  languageMn: 'Монгол',
   themeLight: 'Гэрэл',
   themeDark: 'Харанхуй',
 
@@ -137,6 +166,29 @@ const mn = {
   mongolianMeanings: 'Монгол утга',
   similarKanji: 'Төстэй ханз',
   gradeYear: (n) => `${n}-р анги`,
+
+  kanjiWordSearchSection: 'Энэ ханз агуулсан үг',
+  kanjiWordSearchBtnPrefix: (char) => `${char}_`,
+  kanjiWordSearchBtnMiddle: (char) => `_${char}_`,
+  kanjiWordSearchBtnSuffix: (char) => `_${char}`,
+  kanjiWordSearchBtnPrefixA11y: (char) => `${char}-ээр эхэлсэн үг хайх`,
+  kanjiWordSearchBtnMiddleA11y: (char) => `${char} агуулсан үг хайх`,
+  kanjiWordSearchBtnSuffixA11y: (char) => `${char}-ээр төгссөн үг хайх`,
+  kanjiWordSearchTitlePrefix: (char) => `${char}-ээр эхэлсэн үг`,
+  kanjiWordSearchTitleMiddle: (char) => `${char} агуулсан үг`,
+  kanjiWordSearchTitleSuffix: (char) => `${char}-ээр төгссөн үг`,
+  kanjiWordSearchEmpty: 'Тохирох үг олдсонгүй',
+  kanjiWordSearchCount: (n) => `${n}`,
+
+  kanjiSearchTitle: 'Үндэс · зураасаар хайх',
+  openKanjiSearch: 'Үндэс · зураасаар ханз хайх',
+  strokeAny: 'Бүгд',
+  strokeCountOption: (n) => `${n} зураас`,
+  kanjiSearchHint: 'Зураас эсвэл үндсийг сонгоход ханзын жагсаалт гарна. Үндсийг олон сонгож болно.',
+  kanjiSearchEmpty: 'Тохирох ханз олдсонгүй',
+  kanjiSearchResultCount: (n) => `${n}`,
+  clearFilters: 'Шүүлт цэвэрлэх',
+  radicalChipA11y: (char) => `Үндэс ${char}`,
 };
 
 export const translations = { ja, mn };
