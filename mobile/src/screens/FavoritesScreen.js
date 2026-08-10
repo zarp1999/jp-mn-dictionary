@@ -38,9 +38,8 @@ function createStyles(colors) {
     },
     toolbar: {
       paddingHorizontal: 16,
-      paddingTop: 12,
+      paddingTop: 10,
       paddingBottom: 4,
-      gap: 10,
     },
     count: {
       fontSize: 12,
@@ -49,19 +48,21 @@ function createStyles(colors) {
     },
     sendBtn: {
       backgroundColor: colors.primary,
-      borderRadius: 10,
-      paddingVertical: 12,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 44,
+      maxWidth: 120,
     },
     sendBtnDisabled: {
       opacity: 0.6,
     },
     sendBtnText: {
       color: '#FFFFFF',
-      fontSize: 15,
+      fontSize: 12,
       fontWeight: '600',
+      textAlign: 'center',
     },
     list: {
       paddingBottom: 20,
@@ -176,10 +177,32 @@ export default function FavoritesScreen({ navigation, favorites, onToggleFavorit
     }
   }, [favoriteList.length, runSend, sending, t]);
 
+  const sendButton = favoriteList.length > 0 ? (
+    <TouchableOpacity
+      style={[styles.sendBtn, sending && styles.sendBtnDisabled]}
+      onPress={handleSendPress}
+      disabled={sending}
+      accessibilityRole="button"
+      accessibilityLabel={t('epaperSend')}
+    >
+      {sending ? (
+        <ActivityIndicator color="#FFFFFF" size="small" />
+      ) : (
+        <Text style={styles.sendBtnText} numberOfLines={2}>
+          {t('epaperSend')}
+        </Text>
+      )}
+    </TouchableOpacity>
+  ) : null;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <ScreenHeader title={t('favoritesTitle')} compact />
+        <ScreenHeader
+          title={t('favoritesTitle')}
+          compact
+          rightElement={sendButton}
+        />
       </View>
 
       {favoriteList.length === 0 ? (
@@ -192,19 +215,6 @@ export default function FavoritesScreen({ navigation, favorites, onToggleFavorit
         <>
           <View style={styles.toolbar}>
             <Text style={styles.count}>{t('favoritesCount', favoriteList.length)}</Text>
-            <TouchableOpacity
-              style={[styles.sendBtn, sending && styles.sendBtnDisabled]}
-              onPress={handleSendPress}
-              disabled={sending}
-              accessibilityRole="button"
-              accessibilityLabel={t('epaperSend')}
-            >
-              {sending ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.sendBtnText}>{t('epaperSend')}</Text>
-              )}
-            </TouchableOpacity>
           </View>
           <FlatList
             data={favoriteList}
