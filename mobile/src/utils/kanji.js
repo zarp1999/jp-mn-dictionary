@@ -187,3 +187,53 @@ export function filterKnownSimilarKanji(characters) {
 
   return known;
 }
+
+/** JLPT levels shown in the kanji list menu (easiest first). */
+export const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'];
+
+let _kanjiByJlptCache = null;
+
+function normalizeJlptLevel(level) {
+  if (level === undefined || level === null || level === '') {
+    return '';
+  }
+  return formatJlpt(level);
+}
+
+/**
+ * Characters tagged with the given JLPT level (e.g. 'N5' or '5').
+ * Order follows kanji_bank appearance (stable).
+ */
+export function listKanjiCharactersByJlpt(level) {
+  const normalized = normalizeJlptLevel(level);
+  if (!normalized) {
+    return [];
+  }
+
+  if (!_kanjiByJlptCache) {
+    _kanjiByJlptCache = new Map();
+    for (const item of rawKanjiData) {
+      const character = item[0];
+      const rawLevel = item[5]?.jlpt;
+      if (!character || rawLevel === undefined || rawLevel === null || rawLevel === '') {
+        continue;
+      }
+      const key = formatJlpt(rawLevel);
+      if (!key) {
+        continue;
+      }
+      let list = _kanjiByJlptCache.get(key);
+      if (!list) {
+        list = [];
+        _kanjiByJlptCache.set(key, list);
+      }
+      list.push(character);
+    }
+  }
+
+  return _kanjiByJlptCache.get(normalized) || [];
+}
+
+export function countKanjiByJlpt(level) {
+  return listKanjiCharactersByJlpt(level).length;
+}

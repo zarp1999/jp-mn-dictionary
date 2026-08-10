@@ -17,13 +17,79 @@ const ja = {
 
   navSearch: '検索',
   navFavorites: 'お気に入り',
+  navWordList: '単語リスト',
+  navKanjiList: '漢字リスト',
   navSettings: '設定',
   openMenu: 'メニューを開く',
+
+  wordListTitle: '単語リスト',
+  wordListLevelLabel: (level) => `JLPT ${level}`,
+  wordListLevelA11y: (level, count) => `JLPT ${level}、${count}語`,
+  wordListCount: (n) => `${n}語`,
+  wordListEmpty: 'このレベルの単語はありません',
+
+  kanjiListTitle: '漢字リスト',
+  kanjiListLevelLabel: (level) => `JLPT ${level}`,
+  kanjiListLevelA11y: (level, count) => `JLPT ${level}、${count}字`,
+  kanjiListCount: (n) => `${n}字`,
+  kanjiListEmpty: 'このレベルの漢字はありません',
 
   favoritesTitle: 'お気に入り',
   favoritesEmpty: 'お気に入りはまだありません',
   favoritesEmptySub: '検索画面で☆をタップして追加できます',
   favoritesCount: (n) => `${n}件`,
+  epaperSend: 'e-Paperに送る',
+  epaperSending: '送信中…',
+  epaperSendTitle: 'e-Paperに送信',
+  epaperSendMessage: (ssid, password, host, count, max) =>
+    `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
+    `2. このアプリに戻り、送信します\n\n` +
+    `送信先: ${host}\n` +
+    `単語: ${Math.min(count, max)}件` +
+    (count > max ? `（お気に入り ${count}件中、先頭${max}件）` : ''),
+  epaperSendConfirm: '送信',
+  epaperSendSuccess: (n) => `${n}語を e-Paper に送信しました`,
+  epaperSendSuccessTruncated: (sent, total, max) =>
+    `${sent}語を送信しました（お気に入り${total}件中、上限${max}件）`,
+  epaperSendFailed: '送信に失敗しました',
+  epaperSendFailedNetwork:
+    'e-Paper に接続できません。Wi-Fi が Wordbook_AP になっているか確認してください。',
+  epaperSendFailedNoWords: '送れる単語がありません',
+  epaperSendFailedNoKanji: '送れる漢字がありません',
+  epaperSendRangeLabel: '送信範囲',
+  epaperSendRangeChip: (from, to) => `${from}–${to}`,
+  epaperSendRangeCount: (from, to, n) => `${from}–${to}（${n}）`,
+  epaperSendListMessage: (ssid, password, host, count, max) =>
+    `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
+    `2. このアプリに戻り、送信します\n\n` +
+    `送信先: ${host}\n` +
+    `単語: ${Math.min(count, max)}語` +
+    (count > max ? `（${count}語中、先頭${max}語）` : '') +
+    `\n※端末の単語帳を置き換えます`,
+  epaperSendListRangeMessage: (ssid, password, host, from, to, count) =>
+    `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
+    `2. このアプリに戻り、送信します\n\n` +
+    `送信先: ${host}\n` +
+    `単語: ${from}–${to}（${count}語）` +
+    `\n※端末の単語帳を置き換えます`,
+  epaperSendSuccessTruncatedList: (sent, total, max) =>
+    `${sent}語を送信しました（${total}語中、上限${max}語）`,
+  epaperSendKanjiMessage: (ssid, password, host, count, max) =>
+    `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
+    `2. このアプリに戻り、送信します\n\n` +
+    `送信先: ${host}\n` +
+    `漢字: ${Math.min(count, max)}字` +
+    (count > max ? `（${count}字中、先頭${max}字）` : '') +
+    `\n※端末の単語帳を置き換えます`,
+  epaperSendKanjiRangeMessage: (ssid, password, host, from, to, count) =>
+    `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
+    `2. このアプリに戻り、送信します\n\n` +
+    `送信先: ${host}\n` +
+    `漢字: ${from}–${to}（${count}字）` +
+    `\n※端末の単語帳を置き換えます`,
+  epaperSendKanjiSuccess: (n) => `${n}字を e-Paper に送信しました`,
+  epaperSendKanjiSuccessTruncated: (sent, total, max) =>
+    `${sent}字を送信しました（${total}字中、上限${max}字）`,
 
   settingsTitle: '設定',
   settingsDictionaryInfo: '辞書情報',
@@ -36,8 +102,6 @@ const ja = {
   settingsAppearance: '表示',
   settingsTheme: 'テーマ',
   settingsLanguage: 'アプリ言語',
-  languageJa: '日本語',
-  languageMn: 'モンゴル語',
   themeLight: 'ライト',
   themeDark: 'ダーク',
 
@@ -46,8 +110,17 @@ const ja = {
   settingsResetFavorites: 'お気に入りをリセット',
   settingsResetTitle: 'お気に入りをリセット',
   settingsResetMessage: 'すべてのお気に入りを削除しますか？',
+  settingsEpaper: 'e-Paper',
+  settingsEpaperHost: '送信先IP',
+  settingsEpaperHostHint: '通常は 192.168.4.1',
+  settingsEpaperWifi: 'Wi-Fi名',
+  settingsEpaperPassword: 'Wi-Fiパスワード',
+  settingsEpaperTest: '接続テスト',
+  settingsEpaperTestOk: 'e-Paper に接続できました',
+  settingsEpaperTestFail: '接続できません。Wordbook_AP に接続しているか確認してください。',
   cancel: 'キャンセル',
   delete: '削除',
+  save: '保存',
 
   mongolianTranslation: 'モンゴル語訳',
   examples: '例文',
@@ -98,7 +171,7 @@ const ja = {
 };
 
 const mn = {
-  appTitle: 'Япон-Монгол толь',
+  appTitle: 'НИЧИМО толь',
   searchPlaceholder: 'Япон / Монгол хэлээр хайх…',
   searchEmptyTitle: 'Үг оруулаад хайна уу',
   searchEmptySub: 'Япон болон монгол хэлээр хайж болно',
@@ -111,13 +184,79 @@ const mn = {
 
   navSearch: 'Хайлт',
   navFavorites: 'Дуртай',
+  navWordList: 'Үгийн жагсаалт',
+  navKanjiList: 'Ханзын жагсаалт',
   navSettings: 'Тохиргоо',
   openMenu: 'Цэс нээх',
+
+  wordListTitle: 'Үгийн жагсаалт',
+  wordListLevelLabel: (level) => `JLPT ${level}`,
+  wordListLevelA11y: (level, count) => `JLPT ${level}, ${count} үг`,
+  wordListCount: (n) => `${n}`,
+  wordListEmpty: 'Энэ түвшний үг байхгүй',
+
+  kanjiListTitle: 'Ханзын жагсаалт',
+  kanjiListLevelLabel: (level) => `JLPT ${level}`,
+  kanjiListLevelA11y: (level, count) => `JLPT ${level}, ${count} ханз`,
+  kanjiListCount: (n) => `${n}`,
+  kanjiListEmpty: 'Энэ түвшний ханз байхгүй',
 
   favoritesTitle: 'Дуртай',
   favoritesEmpty: 'Дуртай үг байхгүй байна',
   favoritesEmptySub: 'Хайлтаас ☆ дарж нэмнэ үү',
   favoritesCount: (n) => `${n}`,
+  epaperSend: 'e-Paper рүү илгээх',
+  epaperSending: 'Илгээж байна…',
+  epaperSendTitle: 'e-Paper рүү илгээх',
+  epaperSendMessage: (ssid, password, host, count, max) =>
+    `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
+    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
+    `Хаяг: ${host}\n` +
+    `Үг: ${Math.min(count, max)}` +
+    (count > max ? ` (дуртай ${count}-аас эхний ${max})` : ''),
+  epaperSendConfirm: 'Илгээх',
+  epaperSendSuccess: (n) => `${n} үгийг e-Paper рүү илгээлээ`,
+  epaperSendSuccessTruncated: (sent, total, max) =>
+    `${sent} үг илгээлээ (дуртай ${total}-аас дээд ${max})`,
+  epaperSendFailed: 'Илгээж чадсангүй',
+  epaperSendFailedNetwork:
+    'e-Paper-т холбогдож чадсангүй. Wi-Fi Wordbook_AP эсэхийг шалгана уу.',
+  epaperSendFailedNoWords: 'Илгээх үг байхгүй',
+  epaperSendFailedNoKanji: 'Илгээх ханз байхгүй',
+  epaperSendRangeLabel: 'Илгээх хүрээ',
+  epaperSendRangeChip: (from, to) => `${from}–${to}`,
+  epaperSendRangeCount: (from, to, n) => `${from}–${to} (${n})`,
+  epaperSendListMessage: (ssid, password, host, count, max) =>
+    `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
+    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
+    `Хаяг: ${host}\n` +
+    `Үг: ${Math.min(count, max)}` +
+    (count > max ? ` (${count}-аас эхний ${max})` : '') +
+    `\n※Төхөөрөмжийн жагсаалтыг сольно`,
+  epaperSendListRangeMessage: (ssid, password, host, from, to, count) =>
+    `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
+    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
+    `Хаяг: ${host}\n` +
+    `Үг: ${from}–${to} (${count})` +
+    `\n※Төхөөрөмжийн жагсаалтыг сольно`,
+  epaperSendSuccessTruncatedList: (sent, total, max) =>
+    `${sent} үг илгээлээ (${total}-аас дээд ${max})`,
+  epaperSendKanjiMessage: (ssid, password, host, count, max) =>
+    `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
+    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
+    `Хаяг: ${host}\n` +
+    `Ханз: ${Math.min(count, max)}` +
+    (count > max ? ` (${count}-аас эхний ${max})` : '') +
+    `\n※Төхөөрөмжийн жагсаалтыг сольно`,
+  epaperSendKanjiRangeMessage: (ssid, password, host, from, to, count) =>
+    `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
+    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
+    `Хаяг: ${host}\n` +
+    `Ханз: ${from}–${to} (${count})` +
+    `\n※Төхөөрөмжийн жагсаалтыг сольно`,
+  epaperSendKanjiSuccess: (n) => `${n} ханзыг e-Paper рүү илгээлээ`,
+  epaperSendKanjiSuccessTruncated: (sent, total, max) =>
+    `${sent} ханз илгээлээ (${total}-аас дээд ${max})`,
 
   settingsTitle: 'Тохиргоо',
   settingsDictionaryInfo: 'Толь бичгийн мэдээлэл',
@@ -130,8 +269,6 @@ const mn = {
   settingsAppearance: 'Харагдац',
   settingsTheme: 'Загвар',
   settingsLanguage: 'Аппын хэл',
-  languageJa: 'Япон',
-  languageMn: 'Монгол',
   themeLight: 'Гэрэл',
   themeDark: 'Харанхуй',
 
@@ -140,8 +277,17 @@ const mn = {
   settingsResetFavorites: 'Дуртайг цэвэрлэх',
   settingsResetTitle: 'Дуртайг цэвэрлэх',
   settingsResetMessage: 'Бүх дуртай үгийг устгах уу?',
+  settingsEpaper: 'e-Paper',
+  settingsEpaperHost: 'IP хаяг',
+  settingsEpaperHostHint: 'Ихэвчлэн 192.168.4.1',
+  settingsEpaperWifi: 'Wi-Fi нэр',
+  settingsEpaperPassword: 'Wi-Fi нууц үг',
+  settingsEpaperTest: 'Холболт шалгах',
+  settingsEpaperTestOk: 'e-Paper-т холбогдлоо',
+  settingsEpaperTestFail: 'Холбогдож чадсангүй. Wordbook_AP-д холбогдсон эсэхийг шалгана уу.',
   cancel: 'Цуцлах',
   delete: 'Устгах',
+  save: 'Хадгалах',
 
   mongolianTranslation: 'Монгол орчуулга',
   examples: 'Жишээ өгүүлбэр',

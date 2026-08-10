@@ -5,6 +5,8 @@ import { StatusBar } from 'react-native';
 
 import SearchStack from './src/navigation/SearchStack';
 import FavoritesStack from './src/navigation/FavoritesStack';
+import WordListStack from './src/navigation/WordListStack';
+import KanjiListStack from './src/navigation/KanjiListStack';
 import SettingsScreen from './src/screens/SettingsScreen';
 import DrawerContent from './src/components/DrawerContent';
 import { loadFavorites, toggleFavorite, saveFavorites } from './src/utils/favorites';
@@ -73,6 +75,24 @@ function AppNavigator() {
         <Drawer.Screen name="Favorites">
           {() => (
             <FavoritesStack
+              favorites={favorites}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          )}
+        </Drawer.Screen>
+
+        <Drawer.Screen name="WordList">
+          {() => (
+            <WordListStack
+              favorites={favorites}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          )}
+        </Drawer.Screen>
+
+        <Drawer.Screen name="KanjiList">
+          {() => (
+            <KanjiListStack
               favorites={favorites}
               onToggleFavorite={handleToggleFavorite}
             />

@@ -4,7 +4,7 @@ import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
 
-function createStyles(colors) {
+function createStyles(colors, isDark) {
   return StyleSheet.create({
     container: {
       paddingTop: 56,
@@ -25,6 +25,9 @@ function createStyles(colors) {
     itemIcon: {
       fontSize: 20,
       width: 28,
+    },
+    itemIconKanji: {
+      color: isDark ? '#FFFFFF' : '#000000',
     },
     itemLabel: {
       flex: 1,
@@ -54,12 +57,14 @@ function createStyles(colors) {
 
 export default function DrawerContent({ state, navigation, favoritesCount }) {
   const { t } = useLocale();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const menuItems = [
     { name: 'Search', label: t('navSearch'), icon: '🔍' },
     { name: 'Favorites', label: t('navFavorites'), icon: '⭐' },
+    { name: 'WordList', label: t('navWordList'), icon: '語' },
+    { name: 'KanjiList', label: t('navKanjiList'), icon: '漢' },
     { name: 'Settings', label: t('navSettings'), icon: '⚙️' },
   ];
 
@@ -74,7 +79,15 @@ export default function DrawerContent({ state, navigation, favoritesCount }) {
             style={[styles.item, active && styles.itemActive]}
             onPress={() => navigation.navigate(item.name)}
           >
-            <Text style={styles.itemIcon}>{item.icon}</Text>
+            <Text
+              style={[
+                styles.itemIcon,
+                (item.name === 'KanjiList' || item.name === 'WordList')
+                  && styles.itemIconKanji,
+              ]}
+            >
+              {item.icon}
+            </Text>
             <Text style={[styles.itemLabel, active && styles.itemLabelActive]}>
               {item.label}
             </Text>
