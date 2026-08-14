@@ -44,6 +44,10 @@ function createStyles(colors) {
     },
     star: {
       fontSize: 20,
+      color: colors.textSecondary,
+    },
+    starActive: {
+      color: colors.amber,
     },
   });
 }
@@ -77,7 +81,9 @@ export default function WordCard({ word, index = 0, isFavorite, onPress, onToggl
         onPress={() => onToggleFavorite(word)}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={styles.star}>{isFavorite ? '⭐' : '☆'}</Text>
+        <Text style={[styles.star, isFavorite && styles.starActive]}>
+          {isFavorite ? '★' : '☆'}
+        </Text>
       </TouchableOpacity>
     </TouchableOpacity>
   );

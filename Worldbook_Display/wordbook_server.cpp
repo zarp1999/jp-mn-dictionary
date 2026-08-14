@@ -172,6 +172,11 @@ void wordbook_server_begin(wordbook_server_on_update_cb on_update)
   );
 }
 
+bool wordbook_server_has_client(void)
+{
+  return WiFi.softAPgetStationNum() > 0;
+}
+
 void wordbook_server_loop(void)
 {
   s_server.handleClient();

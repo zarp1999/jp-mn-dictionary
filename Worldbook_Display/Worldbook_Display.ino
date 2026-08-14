@@ -17,6 +17,11 @@ static void example_lvgl_port_task(void *arg);
 
 static void example_lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_map)
 {
+  if (wordbook_is_shutting_down() || driver == NULL) {
+    lv_disp_flush_ready(drv);
+    return;
+  }
+
   uint16_t *buffer = (uint16_t *)color_map;
   driver->EPD_Clear();
   for(int y = area->y1; y <= area->y2; y++) 

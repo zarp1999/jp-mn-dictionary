@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -53,11 +53,8 @@ function createStyles(colors) {
       textAlign: 'center',
       marginRight: 44,
     },
-    scroll: {
+    list: {
       flex: 1,
-    },
-    content: {
-      paddingBottom: 24,
     },
     section: {
       paddingHorizontal: 16,
@@ -142,6 +139,7 @@ function createStyles(colors) {
     hint: {
       paddingHorizontal: 24,
       paddingTop: 32,
+      paddingBottom: 24,
       fontSize: 15,
       color: colors.textTertiary,
       textAlign: 'center',
@@ -150,16 +148,16 @@ function createStyles(colors) {
     empty: {
       paddingHorizontal: 24,
       paddingTop: 32,
+      paddingBottom: 24,
       fontSize: 15,
       color: colors.textTertiary,
       textAlign: 'center',
     },
     resultGrid: {
-      paddingHorizontal: 12,
-      paddingTop: 8,
+      paddingBottom: 24,
     },
-    strokeResultSection: {
-      paddingTop: 8,
+    resultRow: {
+      paddingHorizontal: 12,
     },
     resultCell: {
       flex: 1,
@@ -194,14 +192,50 @@ export default function KanjiSearchScreen({ navigation }) {
   const [strokeCount, setStrokeCount] = useState(null);
   const [selectedRadicals, setSelectedRadicals] = useState([]);
 
+  const listRef = useRef(null);
+  const headerHeightRef = useRef(0);
+  const didMountRef = useRef(false);
+  const pendingScrollRef = useRef(false);
+
   const results = useMemo(
     () => searchKanjiByRadicalAndStrokes({ strokeCount, radicals: selectedRadicals }),
     [strokeCount, selectedRadicals],
   );
 
   const hasFilter = strokeCount !== null || selectedRadicals.length > 0;
-  const showStrokeResults = strokeCount !== null;
-  const showRadicalResults = strokeCount === null && selectedRadicals.length > 0;
+
+  const onHeaderLayout = useCallback((event) => {
+    headerHeightRef.current = event.nativeEvent.layout.height;
+    if (pendingScrollRef.current) {
+      pendingScrollRef.current = false;
+      listRef.current?.scrollToOffset({
+        offset: headerHeightRef.current,
+        animated: true,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    if (!hasFilter) {
+      pendingScrollRef.current = false;
+      return;
+    }
+
+    pendingScrollRef.current = true;
+    requestAnimationFrame(() => {
+      if (pendingScrollRef.current && headerHeightRef.current > 0) {
+        pendingScrollRef.current = false;
+        listRef.current?.scrollToOffset({
+          offset: headerHeightRef.current,
+          animated: true,
+        });
+      }
+    });
+  }, [strokeCount, selectedRadicals, hasFilter]);
 
   const toggleRadical = useCallback((display) => {
     setSelectedRadicals((prev) =>
@@ -234,48 +268,9 @@ export default function KanjiSearchScreen({ navigation }) {
     [handleSelectKanji, styles, t],
   );
 
-  const renderResultsBlock = (showToolbar = true) => (
-    <>
-      {showToolbar && (
-        <View style={styles.toolbar}>
-          <Text style={styles.resultCount}>
-            {t('kanjiSearchResultCount', results.length)}
-          </Text>
-          <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
-            <Text style={styles.clearText}>{t('clearFilters')}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {results.length === 0 ? (
-        <Text style={styles.empty}>{t('kanjiSearchEmpty')}</Text>
-      ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item}
-          renderItem={renderResultItem}
-          numColumns={RESULT_COLUMNS}
-          scrollEnabled={false}
-          contentContainerStyle={styles.resultGrid}
-        />
-      )}
-    </>
-  );
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          accessibilityLabel={t('back')}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>{t('kanjiSearchTitle')}</Text>
-      </View>
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+  const listHeader = useMemo(
+    () => (
+      <View onLayout={onHeaderLayout}>
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('strokes')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -313,12 +308,6 @@ export default function KanjiSearchScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        {showStrokeResults && (
-          <View style={[styles.section, styles.strokeResultSection]}>
-            {renderResultsBlock()}
-          </View>
-        )}
-
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('radical')}</Text>
           <View style={styles.radicalGrid}>
@@ -338,12 +327,66 @@ export default function KanjiSearchScreen({ navigation }) {
           </View>
         </View>
 
-        {showRadicalResults ? (
-          renderResultsBlock()
-        ) : !hasFilter ? (
+        {hasFilter ? (
+          <View style={styles.toolbar}>
+            <Text style={styles.resultCount}>
+              {t('kanjiSearchResultCount', results.length)}
+            </Text>
+            <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
+              <Text style={styles.clearText}>{t('clearFilters')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
           <Text style={styles.hint}>{t('kanjiSearchHint')}</Text>
-        ) : null}
-      </ScrollView>
+        )}
+      </View>
+    ),
+    [
+      clearFilters,
+      hasFilter,
+      onHeaderLayout,
+      radicalOptions,
+      results.length,
+      selectedRadicals,
+      strokeCount,
+      strokeOptions,
+      styles,
+      t,
+      toggleRadical,
+    ],
+  );
+
+  const listEmpty = useMemo(
+    () => (hasFilter ? <Text style={styles.empty}>{t('kanjiSearchEmpty')}</Text> : null),
+    [hasFilter, styles.empty, t],
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          accessibilityLabel={t('back')}
+        >
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>{t('kanjiSearchTitle')}</Text>
+      </View>
+
+      <FlatList
+        ref={listRef}
+        style={styles.list}
+        data={hasFilter ? results : []}
+        keyExtractor={(item) => item}
+        renderItem={renderResultItem}
+        numColumns={RESULT_COLUMNS}
+        columnWrapperStyle={styles.resultRow}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        contentContainerStyle={styles.resultGrid}
+        keyboardShouldPersistTaps="handled"
+      />
     </SafeAreaView>
   );
 }

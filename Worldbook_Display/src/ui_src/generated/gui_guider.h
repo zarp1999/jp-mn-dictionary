@@ -14,6 +14,13 @@ typedef struct
 	lv_obj_t *label_reading;
 	lv_obj_t *label_gloss;
 	lv_obj_t *label_page;
+	lv_obj_t *battery_body;   /* top-right outline */
+	lv_obj_t *battery_tip;    /* nub on the right */
+	lv_obj_t *battery_seg[3]; /* fill bars (left→right) */
+	lv_obj_t *wifi_icon;      /* container; hidden when no SoftAP client */
+	lv_obj_t *wifi_dot;
+	lv_obj_t *wifi_arc[3];    /* radio arcs, small→large */
+	lv_obj_t *label_battery;  /* unused; kept NULL for compatibility */
 	lv_obj_t *label_hint; /* unused; kept for compatibility */
 } lv_ui;
 

@@ -120,9 +120,15 @@ void epaper_driver_display::spi_port_init() {
 
 void epaper_driver_display::read_busy() {
     int busy = lcd_spi_data.busy;
-    while(gpio_get_level((gpio_num_t)busy) == 1) 
-	{
-        vTaskDelay(pdMS_TO_TICKS(5));   //LOW: idle, HIGH: busy
+    /* Full refresh can take a few seconds; never block forever. */
+    const int max_loops = 2000; /* 2000 * 5ms ≈ 10s */
+    int loops = 0;
+    while (gpio_get_level((gpio_num_t)busy) == 1) {
+        vTaskDelay(pdMS_TO_TICKS(5)); /* LOW: idle, HIGH: busy */
+        if (++loops >= max_loops) {
+            ESP_LOGW(TAG, "EPD busy timeout after %d ms", loops * 5);
+            break;
+        }
     }
 }
 

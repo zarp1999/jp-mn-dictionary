@@ -13,6 +13,7 @@ void user_app_init(void);
 void user_ui_init(void);
 void user_app_loop(void);
 void wordbook_ui_poll(void);
+bool wordbook_is_shutting_down(void);
 
 #ifdef __cplusplus
 }

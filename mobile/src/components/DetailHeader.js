@@ -22,6 +22,10 @@ function createStyles(colors) {
     },
     star: {
       fontSize: 24,
+      color: colors.textSecondary,
+    },
+    starActive: {
+      color: colors.amber,
     },
     spacer: {
       flex: 1,
@@ -53,7 +57,9 @@ export default function DetailHeader({ onBack, isFavorite, onToggleFavorite }) {
         accessibilityLabel={isFavorite ? t('removeFavorite') : t('addFavorite')}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={styles.star}>{isFavorite ? '⭐' : '☆'}</Text>
+        <Text style={[styles.star, isFavorite && styles.starActive]}>
+          {isFavorite ? '★' : '☆'}
+        </Text>
       </TouchableOpacity>
     </View>
   );

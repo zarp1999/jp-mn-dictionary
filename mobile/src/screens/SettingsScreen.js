@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,22 +8,13 @@ import {
   Alert,
   Switch,
   Image,
-  TextInput,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import ScreenHeader from '../components/ScreenHeader';
 import { useLocale } from '../i18n/LocaleContext';
 import { LOCALES } from '../i18n/translations';
 import { useTheme, THEMES } from '../theme/ThemeContext';
-import {
-  DEFAULT_EPAPER_HOST,
-  EPAPER_WIFI_PASSWORD,
-  EPAPER_WIFI_SSID,
-  loadEpaperHost,
-  pingEpaper,
-  saveEpaperHost,
-} from '../utils/epaperSync';
+import { EPAPER_WIFI_PASSWORD, EPAPER_WIFI_SSID } from '../utils/epaperSync';
 
 function createStyles(colors) {
   return StyleSheet.create({
@@ -76,20 +67,6 @@ function createStyles(colors) {
       textAlign: 'right',
       marginLeft: 12,
     },
-    hostInput: {
-      flex: 1,
-      marginLeft: 12,
-      fontSize: 15,
-      color: colors.textPrimary,
-      textAlign: 'right',
-      paddingVertical: 0,
-    },
-    hint: {
-      fontSize: 12,
-      color: colors.textTertiary,
-      paddingHorizontal: 14,
-      paddingBottom: 12,
-    },
     divider: {
       height: 0.5,
       backgroundColor: colors.border,
@@ -97,9 +74,6 @@ function createStyles(colors) {
     },
     danger: {
       color: colors.danger,
-    },
-    actionLabel: {
-      color: colors.primary,
     },
     themeControl: {
       flexDirection: 'row',
@@ -123,12 +97,6 @@ export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
   const { locale, toggleLocale, t } = useLocale();
   const { colors, isDark, setTheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [epaperHost, setEpaperHost] = useState(DEFAULT_EPAPER_HOST);
-  const [testing, setTesting] = useState(false);
-
-  useEffect(() => {
-    loadEpaperHost().then(setEpaperHost);
-  }, []);
 
   const handleThemeToggle = (enabled) => {
     setTheme(enabled ? THEMES.dark : THEMES.light);
@@ -143,25 +111,6 @@ export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
         { text: t('delete'), style: 'destructive', onPress: onClearFavorites },
       ],
     );
-  };
-
-  const handleSaveHost = async () => {
-    const saved = await saveEpaperHost(epaperHost);
-    setEpaperHost(saved);
-  };
-
-  const handleTestConnection = async () => {
-    setTesting(true);
-    try {
-      const saved = await saveEpaperHost(epaperHost);
-      setEpaperHost(saved);
-      await pingEpaper(saved);
-      Alert.alert(t('settingsEpaper'), t('settingsEpaperTestOk'));
-    } catch {
-      Alert.alert(t('settingsEpaper'), t('settingsEpaperTestFail'));
-    } finally {
-      setTesting(false);
-    }
   };
 
   return (
@@ -226,34 +175,6 @@ export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
               <Text style={styles.rowLabel}>{t('settingsEpaperPassword')}</Text>
               <Text style={styles.rowValue}>{EPAPER_WIFI_PASSWORD}</Text>
             </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>{t('settingsEpaperHost')}</Text>
-              <TextInput
-                style={styles.hostInput}
-                value={epaperHost}
-                onChangeText={setEpaperHost}
-                onEndEditing={handleSaveHost}
-                onSubmitEditing={handleSaveHost}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="numbers-and-punctuation"
-                placeholder={DEFAULT_EPAPER_HOST}
-                placeholderTextColor={colors.textTertiary}
-              />
-            </View>
-            <Text style={styles.hint}>{t('settingsEpaperHostHint')}</Text>
-            <View style={styles.divider} />
-            <TouchableOpacity
-              style={styles.row}
-              onPress={handleTestConnection}
-              disabled={testing}
-            >
-              <Text style={[styles.rowLabel, styles.actionLabel]}>
-                {t('settingsEpaperTest')}
-              </Text>
-              {testing ? <ActivityIndicator color={colors.primary} /> : null}
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -268,11 +189,6 @@ export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('settingsEntryCount')}</Text>
               <Text style={styles.rowValue}>{t('settingsEntryCountValue')}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>{t('settingsSource')}</Text>
-              <Text style={styles.rowValue}>{t('settingsSourceValue')}</Text>
             </View>
           </View>
         </View>
