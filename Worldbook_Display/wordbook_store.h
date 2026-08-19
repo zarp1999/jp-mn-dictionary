@@ -20,6 +20,11 @@ size_t wordbook_store_count(void);
 bool wordbook_store_get(size_t index, wordbook_word_t *out);
 bool wordbook_store_replace_json(const char *json, char *err, size_t err_len);
 
+/* Resume position within the current deck (survives reboot / shutdown). */
+bool wordbook_store_save_progress(size_t index, bool show_gloss);
+bool wordbook_store_load_progress(size_t *index, bool *show_gloss);
+void wordbook_store_reset_progress(void);
+
 #ifdef __cplusplus
 }
 #endif

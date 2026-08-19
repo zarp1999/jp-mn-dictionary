@@ -10,6 +10,7 @@ import { getKanjiForWord } from '../utils/kanji';
 import DetailHeader from '../components/DetailHeader';
 import ExampleSentence from '../components/ExampleSentence';
 import KanjiSection from '../components/KanjiSection';
+import ConjugationSection from '../components/ConjugationSection';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -156,6 +157,8 @@ export default function WordDetailScreen({
             }
           />
         ) : null}
+
+        <ConjugationSection headword={word.headword} />
       </ScrollView>
     </SafeAreaView>
   );

@@ -13,10 +13,13 @@
 static const char *TAG = "wordbook_store";
 static const char *STORE_PATH = "/wordbook.bin";
 static const char *STORE_PATH_TMP = "/wordbook.tmp";
+static const char *PROGRESS_PATH = "/progress.bin";
 static const char *NVS_NS = "wordbook"; /* legacy only (one-time migrate) */
 
 static const uint32_t STORE_MAGIC = 0x314B4257u; /* 'WBK1' little-endian */
 static const uint8_t STORE_VERSION = 3;
+static const uint32_t PROGRESS_MAGIC = 0x47525057u; /* 'WPRG' little-endian */
+static const uint8_t PROGRESS_VERSION = 1;
 
 typedef struct __attribute__((packed)) {
   uint32_t magic;
@@ -24,6 +27,13 @@ typedef struct __attribute__((packed)) {
   uint8_t count;
   uint16_t reserved;
 } wordbook_file_header_t;
+
+typedef struct __attribute__((packed)) {
+  uint32_t magic;
+  uint8_t version;
+  uint8_t show_gloss;
+  uint16_t index;
+} wordbook_progress_t;
 
 static wordbook_word_t s_words[WORDBOOK_MAX_WORDS];
 static wordbook_word_t s_parse_buf[WORDBOOK_MAX_WORDS]; /* avoid large stack in HTTP task */
@@ -305,6 +315,70 @@ bool wordbook_store_get(size_t index, wordbook_word_t *out)
   return ok;
 }
 
+bool wordbook_store_save_progress(size_t index, bool show_gloss)
+{
+  if (!s_fs_ready) {
+    return false;
+  }
+
+  wordbook_progress_t prog = {};
+  prog.magic = PROGRESS_MAGIC;
+  prog.version = PROGRESS_VERSION;
+  prog.show_gloss = show_gloss ? 1 : 0;
+  prog.index = (uint16_t)index;
+
+  File f = LittleFS.open(PROGRESS_PATH, "w");
+  if (!f) {
+    ESP_LOGW(TAG, "open %s failed", PROGRESS_PATH);
+    return false;
+  }
+  const size_t n = f.write((const uint8_t *)&prog, sizeof(prog));
+  f.flush();
+  f.close();
+
+  if (n != sizeof(prog)) {
+    ESP_LOGW(TAG, "progress write incomplete");
+    return false;
+  }
+
+  ESP_LOGI(TAG, "saved progress index=%u gloss=%d", (unsigned)index, (int)show_gloss);
+  return true;
+}
+
+bool wordbook_store_load_progress(size_t *index, bool *show_gloss)
+{
+  if (!index || !show_gloss || !s_fs_ready || !LittleFS.exists(PROGRESS_PATH)) {
+    return false;
+  }
+
+  File f = LittleFS.open(PROGRESS_PATH, "r");
+  if (!f) {
+    return false;
+  }
+
+  wordbook_progress_t prog = {};
+  const int n = f.read((uint8_t *)&prog, sizeof(prog));
+  f.close();
+  if (n != (int)sizeof(prog)
+      || prog.magic != PROGRESS_MAGIC
+      || prog.version != PROGRESS_VERSION) {
+    return false;
+  }
+
+  *index = prog.index;
+  *show_gloss = prog.show_gloss != 0;
+  ESP_LOGI(TAG, "loaded progress index=%u gloss=%d", (unsigned)*index, (int)*show_gloss);
+  return true;
+}
+
+void wordbook_store_reset_progress(void)
+{
+  if (s_fs_ready && LittleFS.exists(PROGRESS_PATH)) {
+    LittleFS.remove(PROGRESS_PATH);
+  }
+  (void)wordbook_store_save_progress(0, false);
+}
+
 bool wordbook_store_replace_json(const char *json, char *err, size_t err_len)
 {
   if (err && err_len > 0) {
@@ -405,5 +479,6 @@ bool wordbook_store_replace_json(const char *json, char *err, size_t err_len)
   }
 
   ESP_LOGI(TAG, "replaced deck with %d words (persisted to LittleFS)", n);
+  wordbook_store_reset_progress();
   return true;
 }

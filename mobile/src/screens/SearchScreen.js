@@ -8,8 +8,16 @@ import {
   StyleSheet,
   SafeAreaView,
   ActivityIndicator,
+  Alert,
+  Platform,
 } from 'react-native';
 import { searchWords, warmUpDictionarySearch } from '../utils/dictionary';
+import {
+  loadSearchHistory,
+  addSearchHistoryItem,
+  removeSearchHistoryItem,
+  clearSearchHistory,
+} from '../utils/searchHistory';
 import WordCard from '../components/WordCard';
 import ScreenHeader from '../components/ScreenHeader';
 import { useLocale } from '../i18n/LocaleContext';
@@ -97,6 +105,61 @@ function createStyles(colors) {
       fontSize: 12,
       color: colors.textTertiary,
     },
+    historyHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    historyTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textTertiary,
+    },
+    historyClear: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.primary,
+    },
+    historyRow: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    historyRowEven: {
+      backgroundColor: colors.white,
+    },
+    historyRowOdd: {
+      backgroundColor: colors.bg,
+    },
+    historyLeft: {
+      flex: 1,
+    },
+    historyHeadword: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+    historyReading: {
+      fontSize: 14,
+      fontWeight: '400',
+      color: colors.textTertiary,
+    },
+    historyDefinition: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    historyRemoveBtn: {
+      paddingLeft: 8,
+    },
+    historyRemove: {
+      fontSize: 16,
+      color: colors.textTertiary,
+    },
   });
 }
 
@@ -110,6 +173,22 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
   const [isSearching, setIsSearching] = useState(false);
   const [isPreparing, setIsPreparing] = useState(true);
   const [searchError, setSearchError] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadSearchHistory()
+      .then((items) => {
+        if (!cancelled) {
+          setHistory(items);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -181,8 +260,50 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
   }, []);
 
   const handlePressWord = useCallback((word) => {
+    addSearchHistoryItem(word)
+      .then(setHistory)
+      .catch(() => {});
     navigation.navigate('WordDetail', { word });
   }, [navigation]);
+
+  const handlePressHistoryItem = useCallback((item) => {
+    setQuery(item.headword);
+    setSearchError(null);
+  }, []);
+
+  const handleRemoveHistoryItem = useCallback((id) => {
+    removeSearchHistoryItem(id)
+      .then(setHistory)
+      .catch(() => {});
+  }, []);
+
+  const handleClearHistory = useCallback(() => {
+    const title = t('searchHistoryClearTitle');
+    const message = t('searchHistoryClearMessage');
+
+    if (Platform.OS === 'web') {
+      const text = message ? `${title}\n\n${message}` : title;
+      if (typeof window !== 'undefined' && window.confirm(text)) {
+        clearSearchHistory()
+          .then(setHistory)
+          .catch(() => {});
+      }
+      return;
+    }
+
+    Alert.alert(title, message, [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('delete'),
+        style: 'destructive',
+        onPress: () => {
+          clearSearchHistory()
+            .then(setHistory)
+            .catch(() => {});
+        },
+      },
+    ]);
+  }, [t]);
 
   const handleOpenKanjiSearch = useCallback(() => {
     navigation.navigate('KanjiSearch');
@@ -199,6 +320,56 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
   ), [favorites, onToggleFavorite, handlePressWord]);
 
   const keyExtractor = useCallback((item) => String(item.id), []);
+
+  const renderHistoryItem = useCallback(({ item, index }) => {
+    const isEven = index % 2 === 0;
+    return (
+      <TouchableOpacity
+        style={[styles.historyRow, isEven ? styles.historyRowEven : styles.historyRowOdd]}
+        onPress={() => handlePressHistoryItem(item)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t('searchHistoryItemA11y', item.headword)}
+      >
+        <View style={styles.historyLeft}>
+          <Text style={styles.historyHeadword}>
+            {item.headword}
+            {item.reading && item.reading !== item.headword ? (
+              <Text style={styles.historyReading}> [{item.reading}]</Text>
+            ) : null}
+          </Text>
+          {item.definitions.length > 0 ? (
+            <Text style={styles.historyDefinition} numberOfLines={1}>
+              {item.definitions.join(', ')}
+            </Text>
+          ) : null}
+        </View>
+        <TouchableOpacity
+          style={styles.historyRemoveBtn}
+          onPress={() => handleRemoveHistoryItem(item.id)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('searchHistoryRemoveA11y', item.headword)}
+        >
+          <Text style={styles.historyRemove}>✕</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  }, [handlePressHistoryItem, handleRemoveHistoryItem, styles, t]);
+
+  const historyHeader = useMemo(() => (
+    <View style={styles.historyHeader}>
+      <Text style={styles.historyTitle}>{t('searchHistoryTitle')}</Text>
+      <TouchableOpacity
+        onPress={handleClearHistory}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={t('searchHistoryClear')}
+      >
+        <Text style={styles.historyClear}>{t('searchHistoryClear')}</Text>
+      </TouchableOpacity>
+    </View>
+  ), [handleClearHistory, styles, t]);
 
   const showPreparing = isPreparing && !query.trim();
   const showSearching = Boolean(query.trim()) && (isSearching || query !== debouncedQuery);
@@ -251,6 +422,17 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
             {t('dictionaryPreparing')}
           </Text>
         </View>
+      ) : !query.trim() && history.length > 0 ? (
+        <FlatList
+          data={history}
+          renderItem={renderHistoryItem}
+          keyExtractor={keyExtractor}
+          ListHeaderComponent={historyHeader}
+          contentContainerStyle={styles.list}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        />
       ) : !query.trim() ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>📖</Text>

@@ -163,6 +163,35 @@ static void wordbook_refresh_ui(void)
   );
 }
 
+static void wordbook_persist_progress(void)
+{
+  (void)wordbook_store_save_progress(s_index, s_show_gloss);
+}
+
+static void wordbook_restore_progress(void)
+{
+  size_t index = 0;
+  bool show_gloss = false;
+  if (!wordbook_store_load_progress(&index, &show_gloss)) {
+    s_index = 0;
+    s_show_gloss = false;
+    return;
+  }
+
+  const size_t count = wordbook_store_count();
+  if (count == 0) {
+    s_index = 0;
+    s_show_gloss = false;
+    return;
+  }
+  if (index >= count) {
+    index = 0;
+    show_gloss = false;
+  }
+  s_index = index;
+  s_show_gloss = show_gloss;
+}
+
 static void wordbook_on_boot_click(void)
 {
   const size_t count = wordbook_store_count();
@@ -176,6 +205,7 @@ static void wordbook_on_boot_click(void)
     s_index = (s_index + 1) % count;
     s_show_gloss = false;
   }
+  wordbook_persist_progress();
   /* Mark dirty; actual LVGL update runs in LVGL task. */
   s_ui_dirty = true;
 }
@@ -194,6 +224,7 @@ static void wordbook_on_pwr_click(void)
     s_index = (s_index + count - 1) % count;
     s_show_gloss = true;
   }
+  wordbook_persist_progress();
   s_ui_dirty = true;
 }
 
@@ -206,6 +237,9 @@ static void wordbook_shutdown(void)
   s_shutting_down = true;
   s_ui_dirty = false;
   ESP_LOGW(TAG, "PWR long-press: shutting down");
+
+  /* Persist resume position before cutting power. */
+  wordbook_persist_progress();
 
   /* Stop SoftAP without blocking forever on teardown. */
   WiFi.softAPdisconnect(true);
@@ -291,6 +325,7 @@ static void wordbook_task(void *arg)
       if (ui_bits & UI_EVENT_REFRESH) {
         s_index = 0;
         s_show_gloss = false;
+        wordbook_store_reset_progress();
         s_ui_dirty = true;
         ESP_LOGI(TAG, "deck refresh requested");
       }
@@ -339,6 +374,7 @@ void user_app_init(void)
 void user_ui_init(void)
 {
   setup_ui(&src_ui);
+  wordbook_restore_progress();
   wordbook_refresh_ui();
   wordbook_server_begin(wordbook_on_deck_updated);
   xTaskCreatePinnedToCore(wordbook_task, "wordbook_task", 4 * 1024, NULL, 4, NULL, 1);
