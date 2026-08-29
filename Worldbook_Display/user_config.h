@@ -51,4 +51,7 @@
 #define WORDBOOK_MAX_BODY_LEN      32768
 /* Deck persistence: LittleFS file on the "spiffs" partition (see partitions.csv). */
 
+/* Battery status refresh while idle / charging (e-Paper redraw only on change). */
+#define WORDBOOK_BATTERY_POLL_MS   180000
+
 #endif // !USER_CONFIG_H

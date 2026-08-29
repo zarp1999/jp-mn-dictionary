@@ -4,7 +4,7 @@ export const LOCALES = {
 };
 
 const ja = {
-  appTitle: '日モ辞典',
+  appTitle: '日モ辞書',
   searchPlaceholder: '日本語・モンゴル語で検索…',
   searchEmptyTitle: '単語を入力して検索',
   searchEmptySub: '日本語でもモンゴル語でも検索できます',
@@ -25,6 +25,8 @@ const ja = {
   navFavorites: 'お気に入り',
   navWordList: '単語リスト',
   navKanjiList: '漢字リスト',
+  navGrammar: '文法',
+  navSlang: 'スラング',
   navSettings: '設定',
   openMenu: 'メニューを開く',
 
@@ -40,17 +42,45 @@ const ja = {
   kanjiListCount: (n) => `${n}字`,
   kanjiListEmpty: 'このレベルの漢字はありません',
 
+  grammarTitle: '文法',
+  grammarLevelLabel: (level) => (level === 'other' ? 'その他' : `JLPT ${level}`),
+  grammarLevelA11y: (level, count) =>
+    (level === 'other' ? `その他、${count}件` : `JLPT ${level}、${count}件`),
+  grammarCount: (n) => `${n}件`,
+  grammarEmpty: 'このレベルの文法はありません',
+  grammarSearchPlaceholder: '文法を検索…',
+  grammarSearchNotFound: (q) => `「${q}」は見つかりませんでした`,
+  grammarConnection: '接続',
+  grammarMeaning: '意味',
+  grammarNote: '注意',
+  grammarSource: '出典',
+  grammarItemA11y: (pattern) => `${pattern}の詳細`,
+
+  slangTitle: 'スラング',
+  slangSearchPlaceholder: 'スラングを検索…',
+  slangSearchNotFound: (q) => `「${q}」は見つかりませんでした`,
+  slangEmpty: 'スラングはありません',
+  slangCount: (n) => `${n}件`,
+  slangItemA11y: (term) => `${term}の詳細`,
+  slangOpenSource: '元記事を開く',
+  slangAttribution: 'Scripting Japan（CC BY-NC-SA 4.0）',
+
   favoritesTitle: 'お気に入り',
   favoritesEmpty: 'お気に入りはまだありません',
-  favoritesEmptySub: '検索画面で☆をタップして追加できます',
+  favoritesEmptySub: '単語や漢字の☆をタップして追加できます',
   favoritesCount: (n) => `${n}件`,
+  epaperIntroTitle: '電子単語帳（e-Paper）とは',
+  epaperIntroBody1: 'アプリで選んだ単語を、紙のような画面の小さな端末に送れます。',
+  epaperIntroBody2: 'この端末を持っていない場合は、送信はできません。',
+  epaperIntroHasDevice: '端末がある',
+  epaperIntroBuy: '購入する',
+  epaperIntroClose: '閉じる',
   epaperSend: 'e-Paperに送る',
   epaperSending: '送信中…',
   epaperSendTitle: 'e-Paperに送信',
-  epaperSendMessage: (ssid, password, host, count, max) =>
+  epaperSendMessage: (ssid, password, _host, count, max) =>
     `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
     `2. このアプリに戻り、送信します\n\n` +
-    `送信先: ${host}\n` +
     `単語: ${Math.min(count, max)}件` +
     (count > max ? `（お気に入り ${count}件中、先頭${max}件）` : ''),
   epaperSendConfirm: '送信',
@@ -65,32 +95,28 @@ const ja = {
   epaperSendRangeLabel: '送信範囲',
   epaperSendRangeChip: (from, to) => `${from}–${to}`,
   epaperSendRangeCount: (from, to, n) => `${from}–${to}（${n}）`,
-  epaperSendListMessage: (ssid, password, host, count, max) =>
+  epaperSendListMessage: (ssid, password, _host, count, max) =>
     `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
     `2. このアプリに戻り、送信します\n\n` +
-    `送信先: ${host}\n` +
     `単語: ${Math.min(count, max)}語` +
     (count > max ? `（${count}語中、先頭${max}語）` : '') +
     `\n※端末の単語帳を置き換えます`,
-  epaperSendListRangeMessage: (ssid, password, host, from, to, count) =>
+  epaperSendListRangeMessage: (ssid, password, _host, from, to, count) =>
     `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
     `2. このアプリに戻り、送信します\n\n` +
-    `送信先: ${host}\n` +
     `単語: ${from}–${to}（${count}語）` +
     `\n※端末の単語帳を置き換えます`,
   epaperSendSuccessTruncatedList: (sent, total, max) =>
     `${sent}語を送信しました（${total}語中、上限${max}語）`,
-  epaperSendKanjiMessage: (ssid, password, host, count, max) =>
+  epaperSendKanjiMessage: (ssid, password, _host, count, max) =>
     `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
     `2. このアプリに戻り、送信します\n\n` +
-    `送信先: ${host}\n` +
     `漢字: ${Math.min(count, max)}字` +
     (count > max ? `（${count}字中、先頭${max}字）` : '') +
     `\n※端末の単語帳を置き換えます`,
-  epaperSendKanjiRangeMessage: (ssid, password, host, from, to, count) =>
+  epaperSendKanjiRangeMessage: (ssid, password, _host, from, to, count) =>
     `1. スマホのWi-Fiで「${ssid}」に接続（パスワード: ${password}）\n` +
     `2. このアプリに戻り、送信します\n\n` +
-    `送信先: ${host}\n` +
     `漢字: ${from}–${to}（${count}字）` +
     `\n※端末の単語帳を置き換えます`,
   epaperSendKanjiSuccess: (n) => `${n}字を e-Paper に送信しました`,
@@ -100,7 +126,7 @@ const ja = {
   settingsTitle: '設定',
   settingsDictionaryInfo: '辞書情報',
   settingsDictionaryName: '辞書名',
-  settingsDictionaryNameValue: '日モ辞典',
+  settingsDictionaryNameValue: '日モ辞書',
   settingsEntryCount: '収録数',
   settingsEntryCountValue: '213,397語',
   settingsSource: '出典',
@@ -117,6 +143,9 @@ const ja = {
   settingsResetTitle: 'お気に入りをリセット',
   settingsResetMessage: 'すべてのお気に入りを削除しますか？',
   settingsEpaper: 'e-Paper',
+  settingsEpaperShowIntro: '端末の説明を再表示',
+  settingsEpaperShowIntroDone: '次回の送信時に説明を表示します',
+  settingsEpaperShop: '購入ページ',
   settingsEpaperHost: '送信先IP',
   settingsEpaperHostHint: '通常は 192.168.4.1',
   settingsEpaperWifi: 'Wi-Fi名',
@@ -129,6 +158,14 @@ const ja = {
   save: '保存',
 
   mongolianTranslation: 'モンゴル語訳',
+  mongolianMeanings: 'モンゴル語の意味',
+  editMeaning: '編集',
+  saveMeaning: '保存',
+  resetMeaning: '元に戻す',
+  meaningEditPlaceholder: '1行に1つの意味を入力',
+  meaningEditHint: '改行で複数の意味を区切れます。',
+  meaningEditWordTitle: 'モンゴル語訳を編集',
+  meaningEditKanjiTitle: (char) => `「${char}」のモンゴル語意味を編集`,
   examples: '例文',
   conjugations: '活用形',
   conjGroup_affirmative: '肯定形',
@@ -163,7 +200,6 @@ const ja = {
   readings: '読み',
   onYomi: '音読み',
   kunYomi: '訓読み',
-  mongolianMeanings: 'モンゴル語の意味',
   similarKanji: '似ている漢字',
   gradeYear: (n) => `${n}年`,
 
@@ -195,7 +231,7 @@ const mn = {
   appTitle: 'НИЧИМО толь',
   searchPlaceholder: 'Япон / Монгол хэлээр хайх…',
   searchEmptyTitle: 'Үг оруулаад хайна уу',
-  searchEmptySub: 'Япон болон монгол хэлээр хайж болно',
+  searchEmptySub: 'Япон болон монгол хэлээр хайх боломжтой',
   searchHistoryTitle: 'Хайлтын түүх',
   searchHistoryClear: 'Бүгдийг устгах',
   searchHistoryClearTitle: 'Хайлтын түүх устгах',
@@ -203,16 +239,18 @@ const mn = {
   searchHistoryRemoveA11y: (word) => `${word}-г түүхээс устгах`,
   searchHistoryItemA11y: (word) => `${word}-г хайх`,
   searchNotFound: (q) => `«${q}» олдсонгүй`,
-  dictionaryPreparing: 'Толь бичиг бэлдэж байна…',
+  dictionaryPreparing: 'Толь бичгийг ачаалж байна…',
   dictionaryLoadFailed: 'Толь бичиг ачаалж чадсангүй. Дахин ачаална уу.',
   searchFailed: 'Хайлт амжилтгүй боллоо. Дахин оролдоно уу.',
   switchToMongolian: 'Аппын хэл: япон. Монгол руу солих',
   switchToJapanese: 'Аппын хэл: монгол. Япон руу солих',
 
   navSearch: 'Хайлт',
-  navFavorites: 'Дуртай',
+  navFavorites: 'Хадгалсан үгс',
   navWordList: 'Үгийн жагсаалт',
   navKanjiList: 'Ханзын жагсаалт',
+  navGrammar: 'Дүрэм',
+  navSlang: 'Хар яриагын үгс',
   navSettings: 'Тохиргоо',
   openMenu: 'Цэс нээх',
 
@@ -228,23 +266,51 @@ const mn = {
   kanjiListCount: (n) => `${n}`,
   kanjiListEmpty: 'Энэ түвшний ханз байхгүй',
 
-  favoritesTitle: 'Дуртай',
-  favoritesEmpty: 'Дуртай үг байхгүй байна',
-  favoritesEmptySub: 'Хайлтаас ☆ дарж нэмнэ үү',
+  grammarTitle: 'Дүрэм',
+  grammarLevelLabel: (level) => (level === 'other' ? 'Бусад' : `JLPT ${level}`),
+  grammarLevelA11y: (level, count) =>
+    (level === 'other' ? `Бусад, ${count}` : `JLPT ${level}, ${count}`),
+  grammarCount: (n) => `${n}`,
+  grammarEmpty: 'Энэ түвшний Дүрэм байхгүй',
+  grammarSearchPlaceholder: 'Дүрэм хайх…',
+  grammarSearchNotFound: (q) => `«${q}» олдсонгүй`,
+  grammarConnection: 'Холболт',
+  grammarMeaning: 'Утга',
+  grammarNote: 'Анхаар',
+  grammarSource: 'Эх сурвалж',
+  grammarItemA11y: (pattern) => `${pattern}-ийн дэлгэрэнгүй`,
+
+  slangTitle: 'Хар яриагын үгс',
+  slangSearchPlaceholder: 'Хар яриагын үг хайх…',
+  slangSearchNotFound: (q) => `«${q}» олдсонгүй`,
+  slangEmpty: 'Хар яриагын үг байхгүй',
+  slangCount: (n) => `${n}`,
+  slangItemA11y: (term) => `${term}-ийн дэлгэрэнгүй`,
+  slangOpenSource: 'Эх өгүүллийг нээх',
+  slangAttribution: 'Scripting Japan (CC BY-NC-SA 4.0)',
+
+  favoritesTitle: 'Хадгалсан үгс',
+  favoritesEmpty: 'Хадгалсан үгс байхгүй байна',
+  favoritesEmptySub: 'Үг эсвэл ханзын ☆-г дарж нэмнэ үү',
   favoritesCount: (n) => `${n}`,
+  epaperIntroTitle: 'Цахим үгийн дэвтэр (e-Paper) гэж юу вэ',
+  epaperIntroBody1: 'Апп дээр сонгосон үгээ цаасан дэлгэцтэй жижиг төхөөрөмж рүү илгээнэ.',
+  epaperIntroBody2: 'Төхөөрөмж байхгүй бол илгээх боломжгүй.',
+  epaperIntroHasDevice: 'Төхөөрөмжтэй',
+  epaperIntroBuy: 'Худалдан авах',
+  epaperIntroClose: 'Хаах',
   epaperSend: 'e-Paper рүү илгээх',
   epaperSending: 'Илгээж байна…',
   epaperSendTitle: 'e-Paper рүү илгээх',
-  epaperSendMessage: (ssid, password, host, count, max) =>
+  epaperSendMessage: (ssid, password, _host, count, max) =>
     `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
-    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
-    `Хаяг: ${host}\n` +
+    `2. Энэ апп руу буцаж ирээд Илгээх товчийг дарна уу\n\n` +
     `Үг: ${Math.min(count, max)}` +
-    (count > max ? ` (дуртай ${count}-аас эхний ${max})` : ''),
+    (count > max ? ` (хадгалсан үгсээс ${count}-аас эхний ${max})` : ''),
   epaperSendConfirm: 'Илгээх',
   epaperSendSuccess: (n) => `${n} үгийг e-Paper рүү илгээлээ`,
   epaperSendSuccessTruncated: (sent, total, max) =>
-    `${sent} үг илгээлээ (дуртай ${total}-аас дээд ${max})`,
+    `${sent} үг илгээлээ (хадгалсан үгсээс ${total}-аас дээд ${max})`,
   epaperSendFailed: 'Илгээж чадсангүй',
   epaperSendFailedNetwork:
     'e-Paper-т холбогдож чадсангүй. Wi-Fi Wordbook_AP эсэхийг шалгана уу.',
@@ -253,32 +319,28 @@ const mn = {
   epaperSendRangeLabel: 'Илгээх хүрээ',
   epaperSendRangeChip: (from, to) => `${from}–${to}`,
   epaperSendRangeCount: (from, to, n) => `${from}–${to} (${n})`,
-  epaperSendListMessage: (ssid, password, host, count, max) =>
+  epaperSendListMessage: (ssid, password, _host, count, max) =>
     `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
-    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
-    `Хаяг: ${host}\n` +
+    `2. Энэ апп руу буцаж ирээд Илгээх товчийг дарна уу\n\n` +
     `Үг: ${Math.min(count, max)}` +
     (count > max ? ` (${count}-аас эхний ${max})` : '') +
     `\n※Төхөөрөмжийн жагсаалтыг сольно`,
-  epaperSendListRangeMessage: (ssid, password, host, from, to, count) =>
+  epaperSendListRangeMessage: (ssid, password, _host, from, to, count) =>
     `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
-    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
-    `Хаяг: ${host}\n` +
+    `2. Энэ апп руу буцаж ирээд Илгээх товчийг дарна уу\n\n` +
     `Үг: ${from}–${to} (${count})` +
     `\n※Төхөөрөмжийн жагсаалтыг сольно`,
   epaperSendSuccessTruncatedList: (sent, total, max) =>
     `${sent} үг илгээлээ (${total}-аас дээд ${max})`,
-  epaperSendKanjiMessage: (ssid, password, host, count, max) =>
+  epaperSendKanjiMessage: (ssid, password, _host, count, max) =>
     `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
-    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
-    `Хаяг: ${host}\n` +
+    `2. Энэ апп руу буцаж ирээд Илгээх товчийг дарна уу\n\n` +
     `Ханз: ${Math.min(count, max)}` +
     (count > max ? ` (${count}-аас эхний ${max})` : '') +
     `\n※Төхөөрөмжийн жагсаалтыг сольно`,
-  epaperSendKanjiRangeMessage: (ssid, password, host, from, to, count) =>
+  epaperSendKanjiRangeMessage: (ssid, password, _host, from, to, count) =>
     `1. Утасны Wi-Fi-аас «${ssid}»-д холбогдоно уу (нууц үг: ${password})\n` +
-    `2. Апп руугаа буцаж илгээнэ үү\n\n` +
-    `Хаяг: ${host}\n` +
+    `2. Энэ апп руу буцаж ирээд Илгээх товчийг дарна уу\n\n` +
     `Ханз: ${from}–${to} (${count})` +
     `\n※Төхөөрөмжийн жагсаалтыг сольно`,
   epaperSendKanjiSuccess: (n) => `${n} ханзыг e-Paper рүү илгээлээ`,
@@ -286,7 +348,7 @@ const mn = {
     `${sent} ханз илгээлээ (${total}-аас дээд ${max})`,
 
   settingsTitle: 'Тохиргоо',
-  settingsDictionaryInfo: 'Толь бичгийн мэдээлэл',
+  settingsDictionaryInfo: 'Толь бичгийн тухай',
   settingsDictionaryName: 'Нэр',
   settingsDictionaryNameValue: 'НИЧИМО толь бичиг',
   settingsEntryCount: 'Үгийн тоо',
@@ -300,11 +362,14 @@ const mn = {
   themeDark: 'Харанхуй',
 
   settingsData: 'Өгөгдөл',
-  settingsFavoritesCount: 'Дуртай үгийн тоо',
-  settingsResetFavorites: 'Дуртайг цэвэрлэх',
-  settingsResetTitle: 'Дуртайг цэвэрлэх',
-  settingsResetMessage: 'Бүх дуртай үгийг устгах уу?',
+  settingsFavoritesCount: 'Хадгалсан үгийн тоо',
+  settingsResetFavorites: 'Хадгалсан үгсыг цэвэрлэх',
+  settingsResetTitle: 'Хадгалсан үгсыг цэвэрлэх',
+  settingsResetMessage: 'Бүх хадгалсан үгсыг устгах уу?',
   settingsEpaper: 'e-Paper',
+  settingsEpaperShowIntro: 'Төхөөрөмжийн тайлбарыг дахин харах',
+  settingsEpaperShowIntroDone: 'Дараагийн илгээлтэд тайлбар гарна',
+  settingsEpaperShop: 'Худалдан авах хуудас',
   settingsEpaperHost: 'IP хаяг',
   settingsEpaperHostHint: 'Ихэвчлэн 192.168.4.1',
   settingsEpaperWifi: 'Wi-Fi нэр',
@@ -317,22 +382,30 @@ const mn = {
   save: 'Хадгалах',
 
   mongolianTranslation: 'Монгол орчуулга',
+  mongolianMeanings: 'Монгол утга',
+  editMeaning: 'Засах',
+  saveMeaning: 'Хадгалах',
+  resetMeaning: 'Анхны байдал',
+  meaningEditPlaceholder: 'Нэг мөрөнд нэг утга',
+  meaningEditHint: 'Шинэ мөр шилжүүлснээр олон утгыг тусгаарлах боломжтой.',
+  meaningEditWordTitle: 'Монгол утгыг засах',
+  meaningEditKanjiTitle: (char) => `«${char}»-ийн монгол утгыг засах`,
   examples: 'Жишээ өгүүлбэр',
   conjugations: 'Хувилал',
-  conjGroup_affirmative: 'Баталгаат',
-  conjGroup_negative: 'Үгүй',
-  conjGroup_polite: 'Эелдэг',
-  conjGroup_politeNegative: 'Эелдэг үгүй',
+  conjGroup_affirmative: 'Батлах хэлбэр',
+  conjGroup_negative: 'Үгүйсгэх хэлбэр',
+  conjGroup_polite: 'Эелдэг хэлбэр',
+  conjGroup_politeNegative: 'Эелдэг үгүйсгэх хэлбэр',
   conj_dictionary: 'Үндсэн хэлбэр',
-  conj_past: 'Өнгөрсөн',
+  conj_past: 'Өнгөрсөн хэлбэр',
   conj_te: 'Тэ хэлбэр',
-  conj_conditionalBa: 'Нөхцөл (ба)',
-  conj_conditionalTara: 'Нөхцөл (тара)',
-  conj_potential: 'Боломжит',
-  conj_passive: 'Пассив',
-  conj_causative: 'Шалтгаан',
-  conj_imperative: 'Тушаал',
-  conj_volitional: 'Зорилго',
+  conj_conditionalBa: 'Нөхцөл (ба) хэлбэр',
+  conj_conditionalTara: 'Нөхцөл (тара) хэлбэр',
+  conj_potential: 'Боломжит хэлбэр',
+  conj_passive: 'Идэвхгүй хэлбэр',
+  conj_causative: 'Үйлдүүлэх хэлбэр',
+  conj_imperative: 'Захирах хэлбэр',
+  conj_volitional: 'Хүсэл зоригийн хэлбэр',
   kanji: 'Ханз',
   showMeaning: 'Утгыг харах',
   onReadingShort: 'Он',
@@ -340,18 +413,17 @@ const mn = {
   kanjiDetailA11y: (char) => `${char}-ийн дэлгэрэнгүй`,
 
   back: 'Буцах',
-  addFavorite: 'Дуртайд нэмэх',
-  removeFavorite: 'Дуртайгаас хасах',
+  addFavorite: 'Хадгалсан үгсэд нэмэх',
+  removeFavorite: 'Хадгалсан үгсээс хасах',
 
   kanjiNotFound: 'Ханз олдсонгүй',
-  strokes: 'Зураас',
+  strokes: 'Зураасны тоо',
   jlpt: 'JLPT',
   grade: 'Анги',
   radical: 'Үндэс',
   readings: 'Уншилт',
   onYomi: 'Онъёми',
   kunYomi: 'Кунъёми',
-  mongolianMeanings: 'Монгол утга',
   similarKanji: 'Төстэй ханз',
   gradeYear: (n) => `${n}-р анги`,
 

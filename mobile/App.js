@@ -7,6 +7,8 @@ import SearchStack from './src/navigation/SearchStack';
 import FavoritesStack from './src/navigation/FavoritesStack';
 import WordListStack from './src/navigation/WordListStack';
 import KanjiListStack from './src/navigation/KanjiListStack';
+import GrammarStack from './src/navigation/GrammarStack';
+import SlangStack from './src/navigation/SlangStack';
 import SettingsScreen from './src/screens/SettingsScreen';
 import DrawerContent from './src/components/DrawerContent';
 import { loadFavorites, toggleFavorite, saveFavorites } from './src/utils/favorites';
@@ -14,6 +16,8 @@ import { initKuromoji } from './src/utils/kuromojiTokenizer';
 import { warmUpDictionarySearch } from './src/utils/dictionary';
 import { LocaleProvider } from './src/i18n/LocaleContext';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { EpaperIntroProvider } from './src/theme/EpaperIntroContext';
+import { MeaningOverridesProvider } from './src/theme/MeaningOverridesContext';
 
 const Drawer = createDrawerNavigator();
 
@@ -99,6 +103,14 @@ function AppNavigator() {
           )}
         </Drawer.Screen>
 
+        <Drawer.Screen name="Grammar">
+          {() => <GrammarStack />}
+        </Drawer.Screen>
+
+        <Drawer.Screen name="Slang">
+          {() => <SlangStack />}
+        </Drawer.Screen>
+
         <Drawer.Screen name="Settings">
           {() => (
             <SettingsScreen
@@ -116,7 +128,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <LocaleProvider>
-        <AppNavigator />
+        <EpaperIntroProvider>
+          <MeaningOverridesProvider>
+            <AppNavigator />
+          </MeaningOverridesProvider>
+        </EpaperIntroProvider>
       </LocaleProvider>
     </ThemeProvider>
   );

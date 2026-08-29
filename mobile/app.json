@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "日モ辞典",
+    "name": "NichiMo",
     "slug": "jp-mn-dictionary",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.dariabazar.jpmn-dictionary",
       "supportsTablet": true,
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -30,7 +31,13 @@
       "output": "single"
     },
     "plugins": [
-      "expo-asset"
-    ]
+      "expo-asset",
+      "japanese-tokenizer"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6b92ff55-71ef-46fc-9a52-a6f7fe46d69f"
+      }
+    }
   }
 }

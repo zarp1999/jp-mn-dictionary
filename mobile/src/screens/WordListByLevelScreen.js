@@ -23,6 +23,8 @@ import {
 } from '../utils/epaperSync';
 import { showEpaperAlert } from '../utils/epaperSendUi';
 import { buildEpaperRanges, sliceByRange } from '../utils/epaperRanges';
+import { useEpaperIntro } from '../theme/EpaperIntroContext';
+import { useMeaningOverrides } from '../theme/MeaningOverridesContext';
 
 function createStyles(colors) {
   return StyleSheet.create({
@@ -129,6 +131,8 @@ export default function WordListByLevelScreen({
 }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  const { confirmHasDevice } = useEpaperIntro();
+  const { overrides } = useMeaningOverrides();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [sending, setSending] = useState(false);
   const [rangeIndex, setRangeIndex] = useState(0);
@@ -167,6 +171,11 @@ export default function WordListByLevelScreen({
       return;
     }
 
+    const hasDevice = await confirmHasDevice();
+    if (!hasDevice) {
+      return;
+    }
+
     const host = await loadEpaperHost();
     const ok = await confirmSend(
       t('epaperSendTitle'),
@@ -198,7 +207,7 @@ export default function WordListByLevelScreen({
     setSending(true);
     try {
       const payloadWords = hydrateJlptWords(visibleWords);
-      const result = await sendWordsToEpaper(host, payloadWords);
+      const result = await sendWordsToEpaper(host, payloadWords, overrides);
       showEpaperAlert(
         t('epaperSendTitle'),
         t('epaperSendSuccess', result.sent),
@@ -217,7 +226,7 @@ export default function WordListByLevelScreen({
     } finally {
       setSending(false);
     }
-  }, [selectedRange, sending, t, visibleWords]);
+  }, [confirmHasDevice, overrides, selectedRange, sending, t, visibleWords]);
 
   const renderItem = useCallback(
     ({ item, index }) => {

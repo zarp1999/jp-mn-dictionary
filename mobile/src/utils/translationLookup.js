@@ -380,6 +380,39 @@ function v2RawIndexToWord(rawIndex) {
   };
 }
 
+function pickPreferredV2RawIndex(indexes) {
+  let best = indexes[0];
+  for (let i = 1; i < indexes.length; i += 1) {
+    if (shouldReplaceV2Entry(_rawV2Data[best], _rawV2Data[indexes[i]])) {
+      best = indexes[i];
+    }
+  }
+  return best;
+}
+
+function lookupV2ExactFromIndex(index, term) {
+  if (!term || !index || !_rawV2Data) {
+    return null;
+  }
+  const indexes = index.get(term);
+  if (!indexes?.length) {
+    return null;
+  }
+  return v2RawIndexToWord(pickPreferredV2RawIndex(indexes));
+}
+
+export function hasV2ExactHeadword(term) {
+  return Boolean(term && _v2ExactHeadwordIndex?.has(term));
+}
+
+export function lookupV2ExactHeadword(term) {
+  return lookupV2ExactFromIndex(_v2ExactHeadwordIndex, term);
+}
+
+export function lookupV2ExactReading(term) {
+  return lookupV2ExactFromIndex(_v2ExactReadingIndex, term);
+}
+
 function addScoredMatch(matches, seen, rawIndex, score) {
   if (seen.has(rawIndex)) {
     return;

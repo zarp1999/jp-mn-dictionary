@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["JapaneseTokenizerModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.japanesetokenizer.JapaneseTokenizerModule"]
+  }
+}

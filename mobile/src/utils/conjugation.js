@@ -518,12 +518,21 @@ function pickPrimaryToken(tokens, headword) {
   return exact || tokens[0];
 }
 
+function normalizeConjugationHeadword(headword) {
+  const trimmed = (headword || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+  const primary = trimmed.split(';')[0].trim();
+  return primary || trimmed;
+}
+
 /**
  * @param {string} headword
  * @returns {Promise<ConjugationResult | null>}
  */
 export async function generateConjugations(headword) {
-  const trimmed = (headword || '').trim();
+  const trimmed = normalizeConjugationHeadword(headword);
   if (!trimmed) {
     return null;
   }
@@ -568,7 +577,8 @@ export async function generateConjugations(headword) {
     }
 
     return null;
-  } catch {
+  } catch (error) {
+    console.warn('Conjugation generation failed', error);
     return null;
   }
 }

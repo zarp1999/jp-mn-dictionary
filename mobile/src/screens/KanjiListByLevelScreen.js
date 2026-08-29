@@ -14,6 +14,8 @@ import { useTheme } from '../theme/ThemeContext';
 import { getKanjiEntry, listKanjiCharactersByJlpt } from '../utils/kanji';
 import { confirmAndSendKanjiToEpaper } from '../utils/epaperSendUi';
 import { buildEpaperRanges, sliceByRange } from '../utils/epaperRanges';
+import { useEpaperIntro } from '../theme/EpaperIntroContext';
+import { useMeaningOverrides } from '../theme/MeaningOverridesContext';
 import EpaperRangePicker from '../components/EpaperRangePicker';
 
 const RESULT_COLUMNS = 5;
@@ -122,6 +124,8 @@ function createStyles(colors) {
 export default function KanjiListByLevelScreen({ navigation, route }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  const { confirmHasDevice } = useEpaperIntro();
+  const { overrides } = useMeaningOverrides();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [sending, setSending] = useState(false);
   const [rangeIndex, setRangeIndex] = useState(0);
@@ -173,15 +177,20 @@ export default function KanjiListByLevelScreen({ navigation, route }) {
     if (sending || visibleKanji.length === 0) {
       return;
     }
+    const hasDevice = await confirmHasDevice();
+    if (!hasDevice) {
+      return;
+    }
     setSending(true);
     try {
       await confirmAndSendKanjiToEpaper(visibleKanji, t, {
         range: selectedRange,
+        overrides,
       });
     } finally {
       setSending(false);
     }
-  }, [selectedRange, sending, t, visibleKanji]);
+  }, [confirmHasDevice, overrides, selectedRange, sending, t, visibleKanji]);
 
   const renderItem = useCallback(
     ({ item }) => (

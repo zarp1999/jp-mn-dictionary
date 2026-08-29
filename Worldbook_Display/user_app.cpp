@@ -34,6 +34,8 @@ static volatile bool s_ui_dirty = false;
 static volatile bool s_shutting_down = false;
 static bool s_wifi_client_seen = false;
 static uint32_t s_wifi_poll_at_ms = 0;
+static uint32_t s_battery_poll_at_ms = 0;
+static bool s_battery_charging_ui = false;
 
 #define UI_EVENT_REFRESH set_bit_button(0)
 
@@ -52,18 +54,83 @@ static bool wordbook_is_kanji_card(const wordbook_word_t *word)
       || strstr(word->reading, "訓読み") != NULL;
 }
 
-static void wordbook_apply_card_layout(bool kanji_card)
+static void wordbook_set_label_band(lv_obj_t *label, lv_coord_t y, lv_coord_t height)
 {
-  if (kanji_card) {
+  if (label == NULL) {
+    return;
+  }
+  lv_obj_set_pos(label, 5, y);
+  lv_obj_set_height(label, height);
+}
+
+/* Kanji reading payload is "音読み: …\\n訓読み: …" — split across two labels. */
+static void wordbook_split_kanji_reading(
+  const char *reading,
+  char *line1,
+  size_t line1_len,
+  char *line2,
+  size_t line2_len)
+{
+  if (!line1 || line1_len == 0 || !line2 || line2_len == 0) {
+    return;
+  }
+  line1[0] = '\0';
+  line2[0] = '\0';
+  if (!reading || reading[0] == '\0') {
+    return;
+  }
+
+  const char *nl = strchr(reading, '\n');
+  if (nl) {
+    size_t first_len = (size_t)(nl - reading);
+    if (first_len >= line1_len) {
+      first_len = line1_len - 1;
+    }
+    memcpy(line1, reading, first_len);
+    line1[first_len] = '\0';
+    snprintf(line2, line2_len, "%s", nl + 1);
+  } else {
+    snprintf(line1, line1_len, "%s", reading);
+  }
+}
+
+static void wordbook_apply_card_layout(bool kanji_card, bool kanji_show_meaning)
+{
+  if (kanji_card && !kanji_show_meaning) {
+    /*
+     * 音読み / 訓読み: two bands stacked with no large gap.
+     * Each band is tall enough for ~2 wrapped lines (18px font).
+     */
+    wordbook_set_label_band(src_ui.label_reading, 88, 50);
+    wordbook_set_label_band(src_ui.label_gloss, 138, 54);
     lv_obj_set_style_text_align(src_ui.label_reading, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_left(src_ui.label_reading, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(src_ui.label_reading, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(src_ui.label_gloss, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(src_ui.label_gloss, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(src_ui.label_gloss, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(src_ui.label_gloss, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+  } else if (kanji_card && kanji_show_meaning) {
+    /* Meaning uses a higher, taller band so ~3 wrapped lines are not clipped. */
+    wordbook_set_label_band(src_ui.label_reading, 92, 16);
+    wordbook_set_label_band(src_ui.label_gloss, 105, 82);
+    lv_obj_set_style_text_align(src_ui.label_reading, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(src_ui.label_reading, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(src_ui.label_gloss, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(src_ui.label_gloss, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(src_ui.label_gloss, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(src_ui.label_gloss, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
   } else {
+    wordbook_set_label_band(src_ui.label_reading, 92, 54);
+    wordbook_set_label_band(src_ui.label_gloss, 150, 42);
     lv_obj_set_style_text_align(src_ui.label_reading, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_left(src_ui.label_reading, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(src_ui.label_reading, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(src_ui.label_gloss, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(src_ui.label_gloss, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(src_ui.label_gloss, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(src_ui.label_gloss, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
   }
-  /* Gloss / meaning is always centered for both kanji and word cards. */
-  lv_obj_set_style_text_align(src_ui.label_gloss, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-  lv_obj_set_style_pad_left(src_ui.label_gloss, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
 static void wordbook_update_battery_icon(void)
@@ -76,6 +143,7 @@ static void wordbook_update_battery_icon(void)
   if (!wordbook_battery_read_level(&level)) {
     level = 0;
   }
+  s_battery_charging_ui = wordbook_battery_is_charging();
 
   /* level 0: outline only; 1..3: that many fill bars from the left. */
   for (int i = 0; i < 3; i++) {
@@ -85,6 +153,16 @@ static void wordbook_update_battery_icon(void)
       lv_obj_add_flag(src_ui.battery_seg[i], LV_OBJ_FLAG_HIDDEN);
     }
   }
+
+  if (src_ui.battery_charge != NULL) {
+    if (s_battery_charging_ui) {
+      lv_obj_clear_flag(src_ui.battery_charge, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(src_ui.battery_charge, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+
+  wordbook_battery_mark_displayed(level, s_battery_charging_ui);
 }
 
 static void wordbook_update_wifi_icon(void)
@@ -92,6 +170,9 @@ static void wordbook_update_wifi_icon(void)
   if (src_ui.wifi_icon == NULL) {
     return;
   }
+
+  /* Shift left when charging "+" is visible so icons do not overlap. */
+  lv_obj_set_pos(src_ui.wifi_icon, s_battery_charging_ui ? 138 : 148, 5);
 
   if (wordbook_server_has_client()) {
     lv_obj_clear_flag(src_ui.wifi_icon, LV_OBJ_FLAG_HIDDEN);
@@ -117,7 +198,7 @@ static void wordbook_refresh_ui(void)
     lv_label_set_text(src_ui.label_reading, "үгийн сан 0");
     lv_label_set_text(src_ui.label_gloss, "");
     lv_label_set_text(src_ui.label_page, "");
-    wordbook_apply_card_layout(false);
+    wordbook_apply_card_layout(false, false);
     return;
   }
 
@@ -138,16 +219,35 @@ static void wordbook_refresh_ui(void)
   }
 
   const bool kanji_card = wordbook_is_kanji_card(&word);
-  wordbook_apply_card_layout(kanji_card);
+  wordbook_apply_card_layout(kanji_card, kanji_card && s_show_gloss);
 
   char page[16];
   lv_label_set_text(src_ui.label_expression, word.expression);
-  lv_label_set_text(src_ui.label_reading, word.reading);
 
-  if (s_show_gloss) {
-    lv_label_set_text(src_ui.label_gloss, word.gloss);
+  if (kanji_card) {
+    if (!s_show_gloss) {
+      char reading_line1[WORDBOOK_MAX_FIELD_LEN];
+      char reading_line2[WORDBOOK_MAX_FIELD_LEN];
+      wordbook_split_kanji_reading(
+        word.reading,
+        reading_line1,
+        sizeof(reading_line1),
+        reading_line2,
+        sizeof(reading_line2)
+      );
+      lv_label_set_text(src_ui.label_reading, reading_line1);
+      lv_label_set_text(src_ui.label_gloss, reading_line2);
+    } else {
+      lv_label_set_text(src_ui.label_reading, "");
+      lv_label_set_text(src_ui.label_gloss, word.gloss);
+    }
   } else {
-    lv_label_set_text(src_ui.label_gloss, "？");
+    lv_label_set_text(src_ui.label_reading, word.reading);
+    if (s_show_gloss) {
+      lv_label_set_text(src_ui.label_gloss, word.gloss);
+    } else {
+      lv_label_set_text(src_ui.label_gloss, "？");
+    }
   }
 
   snprintf(page, sizeof(page), "%u/%u", (unsigned)(s_index + 1), (unsigned)count);
@@ -394,8 +494,9 @@ void user_app_loop(void)
   }
   wordbook_server_loop();
 
-  /* SoftAP associate/disassociate → show/hide Wi-Fi icon (throttled). */
   const uint32_t now = millis();
+
+  /* SoftAP associate/disassociate → show/hide Wi-Fi icon (throttled). */
   if ((int32_t)(now - s_wifi_poll_at_ms) >= 500) {
     s_wifi_poll_at_ms = now;
     const bool connected = wordbook_server_has_client();
@@ -403,6 +504,26 @@ void user_app_loop(void)
       s_wifi_client_seen = connected;
       s_ui_dirty = true;
       ESP_LOGI(TAG, "SoftAP client %s", connected ? "connected" : "disconnected");
+    }
+  }
+
+  /*
+   * Idle / charging: re-sample battery on an interval.
+   * Redraw e-Paper only when level bars or charging mark change.
+   */
+  if ((int32_t)(now - s_battery_poll_at_ms) >= (int32_t)WORDBOOK_BATTERY_POLL_MS) {
+    s_battery_poll_at_ms = now;
+    int level = 0;
+    bool charging = false;
+    bool changed = false;
+    if (wordbook_battery_poll(&level, &charging, &changed) && changed) {
+      s_ui_dirty = true;
+      ESP_LOGI(
+        TAG,
+        "battery status changed level=%d charging=%d",
+        level,
+        (int)charging
+      );
     }
   }
 }

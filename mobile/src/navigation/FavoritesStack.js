@@ -29,7 +29,15 @@ export default function FavoritesStack({ favorites, onToggleFavorite }) {
           />
         )}
       </Stack.Screen>
-      <Stack.Screen name="KanjiDetail" component={KanjiDetailScreen} />
+      <Stack.Screen name="KanjiDetail">
+        {(props) => (
+          <KanjiDetailScreen
+            {...props}
+            favorites={favorites}
+            onToggleFavorite={onToggleFavorite}
+          />
+        )}
+      </Stack.Screen>
       <Stack.Screen name="KanjiWordList">
         {(props) => (
           <KanjiWordListScreen

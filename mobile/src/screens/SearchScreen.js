@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { searchWords, warmUpDictionarySearch } from '../utils/dictionary';
+import { searchWordsFast, searchWordsFollowUp, warmUpDictionarySearch } from '../utils/dictionary';
+import { searchAllGrammar } from '../utils/grammar';
+import { searchAllSlang } from '../utils/slang';
 import {
   loadSearchHistory,
   addSearchHistoryItem,
@@ -19,11 +21,16 @@ import {
   clearSearchHistory,
 } from '../utils/searchHistory';
 import WordCard from '../components/WordCard';
+import GrammarCard from '../components/GrammarCard';
+import SlangCard from '../components/SlangCard';
 import ScreenHeader from '../components/ScreenHeader';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const KUROMOJI_FOLLOWUP_TIMEOUT_MS = 4000;
+/** 準備 UI の最大表示時間（ms）。辞書読み込み完了前でもこの時間で検索画面を出す */
+const DICTIONARY_PREPARE_UI_MAX_MS = 2000;
 
 function createStyles(colors) {
   return StyleSheet.create({
@@ -170,10 +177,14 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [grammarResults, setGrammarResults] = useState([]);
+  const [slangResults, setSlangResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
   const [isPreparing, setIsPreparing] = useState(true);
   const [searchError, setSearchError] = useState(null);
   const [history, setHistory] = useState([]);
+  const searchGenRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,23 +204,34 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
   useEffect(() => {
     let cancelled = false;
     setIsPreparing(true);
+    setSearchError(null);
+
+    const hidePreparing = () => {
+      if (!cancelled) {
+        setIsPreparing(false);
+      }
+    };
+
+    const maxTimer = setTimeout(hidePreparing, DICTIONARY_PREPARE_UI_MAX_MS);
+
     warmUpDictionarySearch()
       .then(() => {
         if (!cancelled) {
-          setIsPreparing(false);
           setSearchError(null);
+          hidePreparing();
         }
       })
       .catch((error) => {
         console.error('Dictionary warmup failed', error);
         if (!cancelled) {
-          setIsPreparing(false);
+          hidePreparing();
           setSearchError(t('dictionaryLoadFailed'));
         }
       });
 
     return () => {
       cancelled = true;
+      clearTimeout(maxTimer);
     };
   }, [t]);
 
@@ -224,40 +246,104 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
   useEffect(() => {
     if (!debouncedQuery.trim()) {
       setResults([]);
+      setGrammarResults([]);
+      setSlangResults([]);
       setIsSearching(false);
+      setIsRefining(false);
       setSearchError(null);
       return undefined;
     }
 
     let cancelled = false;
+    const refine = { timeoutId: null };
+    const gen = searchGenRef.current;
     setIsSearching(true);
+    setIsRefining(false);
     setSearchError(null);
 
-    searchWords(debouncedQuery, 'jp-mn', 100)
+    const grammarHits = searchAllGrammar(debouncedQuery);
+    const slangHits = searchAllSlang(debouncedQuery);
+    setGrammarResults(grammarHits);
+    setSlangResults(slangHits);
+
+    const isStale = () => cancelled || searchGenRef.current !== gen;
+
+    searchWordsFast(debouncedQuery, 'jp-mn', 100)
       .then((data) => {
-        if (!cancelled) {
-          setResults(data);
-          setIsSearching(false);
+        if (isStale()) {
+          return undefined;
         }
+
+        setResults(data);
+        setIsSearching(false);
+
+        if (data.length > 0) {
+          return undefined;
+        }
+
+        setIsRefining(true);
+        refine.timeoutId = setTimeout(() => {
+          if (!isStale()) {
+            setIsRefining(false);
+          }
+        }, KUROMOJI_FOLLOWUP_TIMEOUT_MS);
+
+        return searchWordsFollowUp(debouncedQuery, 'jp-mn', 100)
+          .then((morph) => {
+            if (refine.timeoutId) {
+              clearTimeout(refine.timeoutId);
+            }
+            if (isStale()) {
+              return;
+            }
+            if (morph.length > 0) {
+              setResults(morph);
+            }
+            setIsRefining(false);
+          })
+          .catch((error) => {
+            console.warn('Search follow-up failed', error);
+            if (refine.timeoutId) {
+              clearTimeout(refine.timeoutId);
+            }
+            if (!isStale()) {
+              setIsRefining(false);
+            }
+          });
       })
       .catch((error) => {
         console.error('Search failed', error);
-        if (!cancelled) {
+        if (!isStale()) {
           setResults([]);
           setIsSearching(false);
-          setSearchError(t('searchFailed'));
+          setIsRefining(false);
+          if (grammarHits.length === 0 && slangHits.length === 0) {
+            setSearchError(t('searchFailed'));
+          }
         }
       });
 
     return () => {
       cancelled = true;
+      if (refine.timeoutId) {
+        clearTimeout(refine.timeoutId);
+      }
     };
   }, [debouncedQuery, t]);
 
   const handleChangeText = useCallback((text) => {
+    if (text === query) {
+      return;
+    }
+
+    searchGenRef.current += 1;
     setQuery(text);
     setSearchError(null);
-  }, []);
+    setResults([]);
+    setGrammarResults([]);
+    setSlangResults([]);
+    setIsRefining(false);
+  }, [query]);
 
   const handlePressWord = useCallback((word) => {
     addSearchHistoryItem(word)
@@ -266,10 +352,17 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
     navigation.navigate('WordDetail', { word });
   }, [navigation]);
 
+  const handlePressGrammar = useCallback((item) => {
+    navigation.navigate('GrammarDetail', { grammarId: item.id });
+  }, [navigation]);
+
+  const handlePressSlang = useCallback((item) => {
+    navigation.navigate('SlangDetail', { slangId: item.id });
+  }, [navigation]);
+
   const handlePressHistoryItem = useCallback((item) => {
-    setQuery(item.headword);
-    setSearchError(null);
-  }, []);
+    handleChangeText(item.headword);
+  }, [handleChangeText]);
 
   const handleRemoveHistoryItem = useCallback((id) => {
     removeSearchHistoryItem(id)
@@ -309,17 +402,70 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
     navigation.navigate('KanjiSearch');
   }, [navigation]);
 
-  const renderItem = useCallback(({ item, index }) => (
-    <WordCard
-      word={item}
-      index={index}
-      isFavorite={!!favorites[item.id]}
-      onPress={() => handlePressWord(item)}
-      onToggleFavorite={onToggleFavorite}
-    />
-  ), [favorites, onToggleFavorite, handlePressWord]);
+  const combinedResults = useMemo(() => {
+    const items = [];
+    results.forEach((word, index) => {
+      items.push({
+        kind: 'word',
+        key: `word-${word.id}`,
+        word,
+        index,
+      });
+    });
+    grammarResults.forEach((grammar, index) => {
+      items.push({
+        kind: 'grammar',
+        key: `grammar-${grammar.id}`,
+        grammar,
+        index: results.length + index,
+      });
+    });
+    slangResults.forEach((slang, index) => {
+      items.push({
+        kind: 'slang',
+        key: `slang-${slang.id}`,
+        slang,
+        index: results.length + grammarResults.length + index,
+      });
+    });
+    return items;
+  }, [grammarResults, slangResults, results]);
 
-  const keyExtractor = useCallback((item) => String(item.id), []);
+  const renderItem = useCallback(({ item }) => {
+    if (item.kind === 'grammar') {
+      return (
+        <GrammarCard
+          item={item.grammar}
+          index={item.index}
+          onPress={() => handlePressGrammar(item.grammar)}
+          accessibilityLabel={t('grammarItemA11y', item.grammar.pattern)}
+        />
+      );
+    }
+
+    if (item.kind === 'slang') {
+      return (
+        <SlangCard
+          item={item.slang}
+          index={item.index}
+          onPress={() => handlePressSlang(item.slang)}
+          accessibilityLabel={t('slangItemA11y', item.slang.term)}
+        />
+      );
+    }
+
+    return (
+      <WordCard
+        word={item.word}
+        index={item.index}
+        isFavorite={!!favorites[item.word.id]}
+        onPress={() => handlePressWord(item.word)}
+        onToggleFavorite={onToggleFavorite}
+      />
+    );
+  }, [favorites, handlePressGrammar, handlePressSlang, handlePressWord, onToggleFavorite, t]);
+
+  const keyExtractor = useCallback((item) => item.key || String(item.id), []);
 
   const renderHistoryItem = useCallback(({ item, index }) => {
     const isEven = index % 2 === 0;
@@ -372,7 +518,7 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
   ), [handleClearHistory, styles, t]);
 
   const showPreparing = isPreparing && !query.trim();
-  const showSearching = Boolean(query.trim()) && (isSearching || query !== debouncedQuery);
+  const isQueryPending = Boolean(query.trim()) && (query !== debouncedQuery || isSearching);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -404,7 +550,7 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
             textContentType="none"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
+            <TouchableOpacity onPress={() => handleChangeText('')}>
               <Text style={styles.clearBtn}>✕</Text>
             </TouchableOpacity>
           )}
@@ -439,21 +585,21 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
           <Text style={styles.emptyText}>{t('searchEmptyTitle')}</Text>
           <Text style={styles.emptySubText}>{t('searchEmptySub')}</Text>
         </View>
-      ) : showSearching ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
-      ) : results.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>{t('searchNotFound', debouncedQuery)}</Text>
-        </View>
-      ) : (
+      ) : combinedResults.length > 0 ? (
         <FlatList
-          data={results}
+          data={combinedResults}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.list}
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         />
+      ) : isQueryPending ? (
+        <View style={styles.emptyState} />
+      ) : (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>{t('searchNotFound', debouncedQuery)}</Text>
+        </View>
       )}
     </SafeAreaView>
   );

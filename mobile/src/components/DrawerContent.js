@@ -65,6 +65,8 @@ export default function DrawerContent({ state, navigation, favoritesCount }) {
     { name: 'Favorites', label: t('navFavorites'), icon: '⭐' },
     { name: 'WordList', label: t('navWordList'), icon: '語' },
     { name: 'KanjiList', label: t('navKanjiList'), icon: '漢' },
+    { name: 'Grammar', label: t('navGrammar'), icon: '文' },
+    { name: 'Slang', label: t('navSlang'), icon: '俗' },
     { name: 'Settings', label: t('navSettings'), icon: '⚙️' },
   ];
 
@@ -82,7 +84,7 @@ export default function DrawerContent({ state, navigation, favoritesCount }) {
             <Text
               style={[
                 styles.itemIcon,
-                (item.name === 'KanjiList' || item.name === 'WordList')
+                (item.name === 'KanjiList' || item.name === 'WordList' || item.name === 'Grammar' || item.name === 'Slang')
                   && styles.itemIconKanji,
               ]}
             >

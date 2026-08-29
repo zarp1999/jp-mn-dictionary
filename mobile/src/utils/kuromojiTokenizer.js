@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
-import { KUROMOJI_DIC_ASSETS, KUROMOJI_DIC_FILENAMES } from './kuromojiDictAssets';
+import { isNativeTokenizerAvailable, tokenizeNative } from 'japanese-tokenizer';
+import { KUROMOJI_DIC_ASSETS } from './kuromojiDictAssets';
 
 const async = require('async');
 const DynamicDictionaries = require('kuromoji/src/dict/DynamicDictionaries');
@@ -18,13 +19,31 @@ function getGunzipClass() {
   );
 }
 
+function copyToArrayBuffer(bytes) {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+function looksLikeGzip(bytes) {
+  return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+}
+
 function gunzipBuffer(bytes) {
+  if (!looksLikeGzip(bytes)) {
+    return copyToArrayBuffer(bytes);
+  }
+
   const Gunzip = getGunzipClass();
   if (!Gunzip) {
     throw new Error('zlibjs Gunzip is not available');
   }
   const gz = new Gunzip(bytes);
-  return gz.decompress().buffer;
+  const decompressed = gz.decompress();
+  if (decompressed instanceof Uint8Array) {
+    return copyToArrayBuffer(decompressed);
+  }
+  return decompressed.buffer;
 }
 
 function shouldSkipLookupToken(token, term) {
@@ -34,18 +53,31 @@ function shouldSkipLookupToken(token, term) {
   return false;
 }
 
-let tokenizerPromise = null;
-let initError = null;
+const INIT_TIMEOUT_MS = 90000;
 
-function normalizeFileUri(file) {
-  if (file.startsWith('file:/') && !file.startsWith('file:///')) {
-    return `file://${file.slice('file:'.length)}`;
+let tokenizerPromise = null;
+
+function isHttpUri(uri) {
+  return typeof uri === 'string' && (uri.startsWith('http://') || uri.startsWith('https://'));
+}
+
+function isFileUri(uri) {
+  return typeof uri === 'string' && uri.startsWith('file://');
+}
+
+function resolveAssetUri(asset) {
+  if (isHttpUri(asset.uri)) {
+    return asset.uri;
   }
-  return file;
+  return asset.localUri || asset.uri || null;
 }
 
 function base64ToUint8Array(base64) {
-  const binary = atob(base64);
+  const decodeBase64 = globalThis.atob;
+  if (typeof decodeBase64 !== 'function') {
+    throw new Error('base64 decode (atob) is not available');
+  }
+  const binary = decodeBase64(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) {
     bytes[i] = binary.charCodeAt(i);
@@ -53,48 +85,60 @@ function base64ToUint8Array(base64) {
   return bytes;
 }
 
-function createWebLoadArrayBuffer() {
-  return function loadArrayBuffer(filename, callback) {
-    const assetModule = KUROMOJI_DIC_ASSETS[filename];
-
-    if (!assetModule) {
-      callback(new Error(`Unknown dictionary file: ${filename}`), null);
-      return;
+async function loadAssetBytes(uri) {
+  if (Platform.OS === 'web' || isHttpUri(uri)) {
+    const response = await fetch(uri);
+    if (!response.ok) {
+      throw new Error(`Failed to load asset: ${response.status}`);
     }
+    return new Uint8Array(await response.arrayBuffer());
+  }
 
-    const asset = Asset.fromModule(assetModule);
-    const uri = asset.localUri || asset.uri;
+  if (isFileUri(uri)) {
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return base64ToUint8Array(base64);
+  }
 
-    fetch(uri)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Failed to load ${filename}: ${response.status}`);
-        }
-        return response.arrayBuffer();
-      })
-      .then((arrayBuffer) => {
-        callback(null, gunzipBuffer(new Uint8Array(arrayBuffer)));
-      })
-      .catch((error) => callback(error, null));
-  };
+  throw new Error(`Unsupported asset URI scheme: ${uri.slice(0, 32)}`);
 }
 
-function createNativeLoadArrayBuffer(dicPath) {
-  return function loadArrayBuffer(filename, callback) {
-    const uri = normalizeFileUri(`${dicPath}${filename}`);
+async function loadDictionaryFile(filename) {
+  const assetModule = KUROMOJI_DIC_ASSETS[filename];
+  if (!assetModule) {
+    throw new Error(`Unknown dictionary file: ${filename}`);
+  }
 
-    FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
-      .then((base64) => {
-        callback(null, gunzipBuffer(base64ToUint8Array(base64)));
-      })
+  const asset = Asset.fromModule(assetModule);
+
+  if (!isHttpUri(asset.uri)) {
+    await asset.downloadAsync();
+  }
+
+  const uri = resolveAssetUri(asset);
+  if (!uri) {
+    throw new Error(`Missing asset URI for ${filename}`);
+  }
+
+  console.log(`[Kuromoji] loading ${filename}`);
+  const bytes = await loadAssetBytes(uri);
+  return gunzipBuffer(bytes);
+}
+
+function createAssetLoadArrayBuffer() {
+  return function loadArrayBuffer(filename, callback) {
+    loadDictionaryFile(filename)
+      .then((buffer) => callback(null, buffer))
       .catch((error) => callback(error, null));
   };
 }
 
 function loadDictionary(loadArrayBuffer, loadCallback) {
   const dic = new DynamicDictionaries();
+  const runTasks = Platform.OS === 'web' ? async.parallel : async.series;
 
-  async.parallel([
+  runTasks([
     function (callback) {
       async.map(['base.dat.gz', 'check.dat.gz'], (filename, _callback) => {
         loadArrayBuffer(filename, (err, buffer) => {
@@ -179,48 +223,19 @@ function loadDictionary(loadArrayBuffer, loadCallback) {
   });
 }
 
-async function ensureWebAssetsReady() {
-  await Promise.all(
-    KUROMOJI_DIC_FILENAMES.map(async (filename) => {
-      const asset = Asset.fromModule(KUROMOJI_DIC_ASSETS[filename]);
-      await asset.downloadAsync();
-    }),
-  );
+function withTimeout(promise, ms, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    clearTimeout(timeoutId);
+  });
 }
 
-async function ensureDictionaryFiles() {
-  const dir = `${FileSystem.documentDirectory}kuromoji/dict/`;
-  const marker = `${dir}.installed`;
-  const markerInfo = await FileSystem.getInfoAsync(marker);
-
-  if (markerInfo.exists) {
-    return dir;
-  }
-
-  await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-
-  await Promise.all(
-    KUROMOJI_DIC_FILENAMES.map(async (filename) => {
-      const asset = Asset.fromModule(KUROMOJI_DIC_ASSETS[filename]);
-      await asset.downloadAsync();
-      await FileSystem.copyAsync({
-        from: asset.localUri,
-        to: `${dir}${filename}`,
-      });
-    }),
-  );
-
-  await FileSystem.writeAsStringAsync(marker, 'ok');
-  return dir;
-}
-
-function buildTokenizer(dicPath) {
+function buildTokenizer() {
   return new Promise((resolve, reject) => {
-    const loadArrayBuffer = Platform.OS === 'web'
-      ? createWebLoadArrayBuffer()
-      : createNativeLoadArrayBuffer(dicPath);
-
-    loadDictionary(loadArrayBuffer, (error, dic) => {
+    loadDictionary(createAssetLoadArrayBuffer(), (error, dic) => {
       if (error) {
         reject(error);
         return;
@@ -230,23 +245,26 @@ function buildTokenizer(dicPath) {
   });
 }
 
-function prepareDictionary() {
-  if (Platform.OS === 'web') {
-    return ensureWebAssetsReady();
-  }
-  return ensureDictionaryFiles();
-}
-
 export function initKuromoji() {
-  if (initError) {
-    return Promise.reject(initError);
+  if (isNativeTokenizerAvailable()) {
+    console.log('[Tokenizer] using native engine');
+    return Promise.resolve(null);
   }
+
   if (!tokenizerPromise) {
-    tokenizerPromise = prepareDictionary()
-      .then((dicPath) => buildTokenizer(dicPath || ''))
+    console.log('[Kuromoji] initializing');
+    tokenizerPromise = withTimeout(
+      buildTokenizer(),
+      INIT_TIMEOUT_MS,
+      `Kuromoji init timed out after ${INIT_TIMEOUT_MS}ms`,
+    )
+      .then((tokenizer) => {
+        console.log('[Kuromoji] initialized');
+        return tokenizer;
+      })
       .catch((error) => {
-        initError = error;
         tokenizerPromise = null;
+        console.warn('Kuromoji initialization failed', error);
         throw error;
       });
   }
@@ -254,6 +272,14 @@ export function initKuromoji() {
 }
 
 export async function tokenizeJapanese(text) {
+  if (isNativeTokenizerAvailable()) {
+    const tokens = await tokenizeNative(text);
+    if (Array.isArray(tokens)) {
+      return tokens;
+    }
+    throw new Error('Native tokenizer returned no tokens');
+  }
+
   const tokenizer = await initKuromoji();
   return tokenizer.tokenize(text);
 }

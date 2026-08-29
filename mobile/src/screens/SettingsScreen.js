@@ -15,6 +15,8 @@ import { useLocale } from '../i18n/LocaleContext';
 import { LOCALES } from '../i18n/translations';
 import { useTheme, THEMES } from '../theme/ThemeContext';
 import { EPAPER_WIFI_PASSWORD, EPAPER_WIFI_SSID } from '../utils/epaperSync';
+import { openEpaperShop } from '../utils/epaperIntro';
+import { useEpaperIntro } from '../theme/EpaperIntroContext';
 
 function createStyles(colors) {
   return StyleSheet.create({
@@ -96,6 +98,7 @@ function createStyles(colors) {
 export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
   const { locale, toggleLocale, t } = useLocale();
   const { colors, isDark, setTheme } = useTheme();
+  const { resetIntro } = useEpaperIntro();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleThemeToggle = (enabled) => {
@@ -175,6 +178,30 @@ export default function SettingsScreen({ favoritesCount, onClearFavorites }) {
               <Text style={styles.rowLabel}>{t('settingsEpaperPassword')}</Text>
               <Text style={styles.rowValue}>{EPAPER_WIFI_PASSWORD}</Text>
             </View>
+            <View style={styles.divider} />
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => {
+                openEpaperShop().catch(() => {});
+              }}
+              accessibilityRole="link"
+              accessibilityLabel={t('settingsEpaperShop')}
+            >
+              <Text style={styles.rowLabel}>{t('settingsEpaperShop')}</Text>
+              <Text style={styles.rowValue}>›</Text>
+            </TouchableOpacity>
+            <View style={styles.divider} />
+            <TouchableOpacity
+              style={styles.row}
+              onPress={async () => {
+                await resetIntro();
+                Alert.alert(t('settingsEpaper'), t('settingsEpaperShowIntroDone'));
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t('settingsEpaperShowIntro')}
+            >
+              <Text style={styles.rowLabel}>{t('settingsEpaperShowIntro')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 

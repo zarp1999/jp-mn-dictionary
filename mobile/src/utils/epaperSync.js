@@ -1,4 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getKanjiEntry } from './kanji';
+import { isKanjiFavorite } from './favorites';
+import {
+  getKanjiMeaningsList,
+  getWordDefinitions,
+} from './meaningOverrides';
 
 const HOST_KEY = '@epaper_host';
 
@@ -44,19 +50,42 @@ export async function saveEpaperHost(host) {
   return normalized;
 }
 
-/** Map app favorite words to ESP32 POST /words payload. */
-export function favoritesToEpaperPayload(words) {
-  const list = Array.isArray(words) ? words : [];
-  const mapped = list.slice(0, EPAPER_MAX_WORDS).map((word) => {
-    const gloss = Array.isArray(word.definitions)
-      ? word.definitions.filter(Boolean).join(', ')
-      : '';
-    return {
-      ja: truncateField(word.headword || ''),
-      reading: truncateField(word.reading || ''),
-      mn: truncateField(gloss),
-    };
-  }).filter((word) => word.ja);
+function mapWordToEpaperItem(word, overrides) {
+  const gloss = getWordDefinitions(word, overrides).filter(Boolean).join(', ');
+  return {
+    ja: truncateField(word.headword || ''),
+    reading: truncateField(word.reading || ''),
+    mn: truncateField(gloss),
+  };
+}
+
+function mapKanjiToEpaperItem(kanji, overrides) {
+  const meanings = getKanjiMeaningsList(kanji, overrides);
+  const gloss = meanings[0] || '';
+  return {
+    ja: truncateField(kanji?.character || ''),
+    reading: truncateField(formatKanjiReading(kanji)),
+    mn: truncateField(gloss),
+  };
+}
+
+export function favoritesToEpaperPayload(items, overrides = null) {
+  const list = Array.isArray(items) ? items : [];
+  const mapped = [];
+
+  for (const item of list) {
+    if (mapped.length >= EPAPER_MAX_WORDS) {
+      break;
+    }
+
+    const row = isKanjiFavorite(item)
+      ? mapKanjiToEpaperItem(getKanjiEntry(item.character) || item, overrides)
+      : mapWordToEpaperItem(item, overrides);
+
+    if (row.ja) {
+      mapped.push(row);
+    }
+  }
 
   return {
     mode: 'replace',
@@ -64,47 +93,47 @@ export function favoritesToEpaperPayload(words) {
   };
 }
 
+const KANJI_READING_SEP = '、';
+
 function clipReadingLine(prefix, readings, maxLen) {
   const body = Array.isArray(readings)
-    ? readings.filter(Boolean).join(' ')
+    ? readings.filter(Boolean).join(KANJI_READING_SEP)
     : String(readings || '');
   const line = body ? `${prefix}${body}` : prefix.trimEnd();
   if (line.length <= maxLen) {
     return line;
   }
-  return line.slice(0, maxLen);
+  /* Prefer cutting at reading separators so we do not split mid-reading. */
+  const cut = line.slice(0, maxLen);
+  const lastSep = cut.lastIndexOf(KANJI_READING_SEP);
+  if (lastSep > prefix.length) {
+    return cut.slice(0, lastSep);
+  }
+  return cut;
 }
 
-/** Two-line reading: 音読み … / 訓読み … */
+/** Two-line reading: 音読み … / 訓読み … (fits WORDBOOK_MAX_FIELD_LEN). */
 function formatKanjiReading(kanji) {
-  const maxLine = Math.floor((EPAPER_MAX_FIELD_LEN - 1) / 2);
-  const onLine = clipReadingLine('音読み: ', kanji?.onYomi, maxLine);
-  const kunLine = clipReadingLine('訓読み: ', kanji?.kunYomi, maxLine);
+  const onBudget = Math.floor((EPAPER_MAX_FIELD_LEN - 1) * 0.55);
+  const onLine = clipReadingLine('音読み: ', kanji?.onYomi, onBudget);
+  const kunBudget = Math.max(24, EPAPER_MAX_FIELD_LEN - onLine.length - 1);
+  const kunLine = clipReadingLine('訓読み: ', kanji?.kunYomi, kunBudget);
   return `${onLine}\n${kunLine}`;
 }
 
-function formatKanjiGloss(kanji) {
-  if (Array.isArray(kanji?.meaningsMnList)) {
-    const first = kanji.meaningsMnList.find((part) => typeof part === 'string' && part.trim());
-    if (first) {
-      return first.trim();
-    }
-  }
-  if (typeof kanji?.meaningMn === 'string' && kanji.meaningMn.trim()) {
-    // Fallback: take only the first sense if joined with ・
-    return kanji.meaningMn.split('・')[0].trim();
-  }
-  return '';
-}
-
 /** Map parsed kanji entries to ESP32 POST /words payload. */
-export function kanjiToEpaperPayload(kanjiList) {
+export function kanjiToEpaperPayload(kanjiList, overrides = null) {
   const list = Array.isArray(kanjiList) ? kanjiList : [];
-  const mapped = list.slice(0, EPAPER_MAX_WORDS).map((kanji) => ({
-    ja: truncateField(kanji?.character || ''),
-    reading: truncateField(formatKanjiReading(kanji)),
-    mn: truncateField(formatKanjiGloss(kanji)),
-  })).filter((word) => word.ja);
+  const mapped = list
+    .slice(0, EPAPER_MAX_WORDS)
+    .map((kanji) => mapKanjiToEpaperItem(
+      {
+        ...kanji,
+        meaningsMnList: getKanjiMeaningsList(kanji, overrides),
+      },
+      overrides,
+    ))
+    .filter((word) => word.ja);
 
   return {
     mode: 'replace',
@@ -183,12 +212,12 @@ async function postWordsPayload(host, payload, sourceCount) {
   };
 }
 
-export async function sendWordsToEpaper(host, words) {
+export async function sendWordsToEpaper(host, words, overrides = null) {
   const list = Array.isArray(words) ? words : [];
-  return postWordsPayload(host, favoritesToEpaperPayload(list), list.length);
+  return postWordsPayload(host, favoritesToEpaperPayload(list, overrides), list.length);
 }
 
-export async function sendKanjiToEpaper(host, kanjiList) {
+export async function sendKanjiToEpaper(host, kanjiList, overrides = null) {
   const list = Array.isArray(kanjiList) ? kanjiList : [];
-  return postWordsPayload(host, kanjiToEpaperPayload(list), list.length);
+  return postWordsPayload(host, kanjiToEpaperPayload(list, overrides), list.length);
 }

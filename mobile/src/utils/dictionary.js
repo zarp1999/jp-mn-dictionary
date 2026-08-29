@@ -6,6 +6,9 @@ import {
   warmUpV2SearchIndexes,
   normalizeSearchText,
   normalizeSearchQuery,
+  hasV2ExactHeadword,
+  lookupV2ExactHeadword,
+  lookupV2ExactReading,
   V2_ID_OFFSET,
 } from './translationLookup';
 import { parseExampleBlocks } from './furigana';
@@ -133,6 +136,14 @@ function getHeadwordSet() {
   return _headwordSet;
 }
 
+function hasHeadword(term) {
+  return getHeadwordSet().has(term) || hasV2ExactHeadword(term);
+}
+
+function isSkippableFunctionSegment(term) {
+  return typeof term === 'string' && term.length === 1 && /^[\u3041-\u3096]$/.test(term);
+}
+
 function pushIndexValue(map, key, value) {
   if (!key) {
     return;
@@ -255,22 +266,21 @@ const GODAN_RENYOU_TO_DICT = {
 };
 
 function getStemLookupForms(stem) {
-  const headwords = getHeadwordSet();
   const forms = [];
 
-  if (headwords.has(stem)) {
+  if (hasHeadword(stem)) {
     forms.push(stem);
   }
 
   const ichidanForm = `${stem}る`;
-  if (headwords.has(ichidanForm)) {
+  if (hasHeadword(ichidanForm)) {
     forms.push(ichidanForm);
   }
 
   const dictEnding = GODAN_RENYOU_TO_DICT[stem.slice(-1)];
   if (dictEnding) {
     const godanForm = stem.slice(0, -1) + dictEnding;
-    if (headwords.has(godanForm)) {
+    if (hasHeadword(godanForm)) {
       forms.push(godanForm);
     }
   }
@@ -283,14 +293,12 @@ function shouldSkipSingleCharPrefixMatch(partLength, remainingLength) {
 }
 
 function matchHeadwordOrStem(text) {
-  const headwords = getHeadwordSet();
-
   for (let len = text.length; len >= 1; len -= 1) {
     const part = text.slice(0, len);
     if (shouldSkipSingleCharPrefixMatch(len, text.length)) {
       continue;
     }
-    if (headwords.has(part)) {
+    if (hasHeadword(part)) {
       return { consumed: len, term: part };
     }
   }
@@ -306,6 +314,10 @@ function matchHeadwordOrStem(text) {
     }
   }
 
+  if (isSkippableFunctionSegment(text[0])) {
+    return { consumed: 1, term: null };
+  }
+
   return null;
 }
 
@@ -318,7 +330,9 @@ function segmentByHeadwordsWithStems(text) {
     if (!match) {
       return null;
     }
-    parts.push(match.term);
+    if (match.term) {
+      parts.push(match.term);
+    }
     rest = rest.slice(match.consumed);
   }
 
@@ -334,7 +348,9 @@ function segmentByHeadwordsPartialWithStems(text) {
     if (!match) {
       return parts.length > 0 ? parts : null;
     }
-    parts.push(match.term);
+    if (match.term) {
+      parts.push(match.term);
+    }
     rest = rest.slice(match.consumed);
   }
 
@@ -342,7 +358,6 @@ function segmentByHeadwordsPartialWithStems(text) {
 }
 
 function segmentByHeadwords(text) {
-  const headwords = getHeadwordSet();
   const parts = [];
   let rest = text;
 
@@ -350,13 +365,17 @@ function segmentByHeadwords(text) {
     let matched = null;
     for (let len = rest.length; len >= 1; len -= 1) {
       const part = rest.slice(0, len);
-      if (headwords.has(part)) {
+      if (hasHeadword(part)) {
         matched = part;
         rest = rest.slice(len);
         break;
       }
     }
     if (!matched) {
+      if (isSkippableFunctionSegment(rest[0])) {
+        rest = rest.slice(1);
+        continue;
+      }
       return null;
     }
     parts.push(matched);
@@ -366,7 +385,6 @@ function segmentByHeadwords(text) {
 }
 
 function segmentByHeadwordsPartial(text) {
-  const headwords = getHeadwordSet();
   const parts = [];
   let rest = text;
 
@@ -374,13 +392,17 @@ function segmentByHeadwordsPartial(text) {
     let matched = null;
     for (let len = rest.length; len >= 1; len -= 1) {
       const part = rest.slice(0, len);
-      if (headwords.has(part)) {
+      if (hasHeadword(part)) {
         matched = part;
         rest = rest.slice(len);
         break;
       }
     }
     if (!matched) {
+      if (isSkippableFunctionSegment(rest[0])) {
+        rest = rest.slice(1);
+        continue;
+      }
       return parts.length > 0 ? parts : null;
     }
     parts.push(matched);
@@ -390,6 +412,30 @@ function segmentByHeadwordsPartial(text) {
 }
 
 const HONORIFIC_PREFIX = /^(お|ご|御)/;
+const CYRILLIC_RE = /[\u0400-\u04FF]/;
+const KUROMOJI_SEARCH_TIMEOUT_MS = 4000;
+
+function queryLooksLikeMongolian(query) {
+  return CYRILLIC_RE.test(query);
+}
+
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timed out after ${ms}ms`));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 function getQueryVariants(query) {
   const trimmed = normalizeSearchText(query);
@@ -413,7 +459,10 @@ function isUsefulPartialSegment(parts) {
 }
 
 function lookupExactTerm(term) {
-  return getHeadwordIndex().get(term) || null;
+  return getHeadwordIndex().get(term)
+    || lookupV2ExactHeadword(term)
+    || lookupV2ExactReading(term)
+    || null;
 }
 
 function resolveTermToParts(term) {
@@ -436,6 +485,9 @@ function resolveTermToParts(term) {
 
 function lookupParts(parts, results, seenIds) {
   for (const part of parts) {
+    if (isSkippableFunctionSegment(part)) {
+      continue;
+    }
     const partWord = lookupExactTerm(part);
     if (partWord && !seenIds.has(partWord.id)) {
       seenIds.add(partWord.id);
@@ -449,6 +501,10 @@ function lookupExactTerms(terms) {
   const seenIds = new Set();
 
   for (const term of terms) {
+    if (isSkippableFunctionSegment(term)) {
+      continue;
+    }
+
     const word = lookupExactTerm(term);
 
     if (word) {
@@ -651,7 +707,9 @@ function searchMergedSources(query, limit = 100) {
   for (const variant of jpVariants) {
     scoredLists.push(searchWordsStandardScored(variant, 'jp-mn', limit));
   }
-  scoredLists.push(searchWordsStandardScored(normalized, 'mn-jp', limit));
+  if (queryLooksLikeMongolian(normalized)) {
+    scoredLists.push(searchWordsStandardScored(normalized, 'mn-jp', limit));
+  }
 
   return mergeScoredResults(scoredLists, limit);
 }
@@ -672,21 +730,21 @@ async function searchMergedSourcesWithV2(query, limit = 100) {
     }
   }
 
-  scoredLists.push(searchWordsStandardScored(normalized, 'mn-jp', limit));
-  try {
-    const v2MnMatches = await searchV2WordsScored(normalized, 'mn-jp', limit);
-    scoredLists.push(v2MnMatches);
-  } catch (error) {
-    console.warn('V2 Mongolian search failed', error);
+  if (queryLooksLikeMongolian(normalized)) {
+    scoredLists.push(searchWordsStandardScored(normalized, 'mn-jp', limit));
+    try {
+      const v2MnMatches = await searchV2WordsScored(normalized, 'mn-jp', limit);
+      scoredLists.push(v2MnMatches);
+    } catch (error) {
+      console.warn('V2 Mongolian search failed', error);
+    }
   }
 
   return mergeScoredResults(scoredLists, limit);
 }
 
-async function searchWordsMorphological(query, limit = 100) {
+function searchWordsByHeadwordSegmentation(query, limit = 100) {
   const trimmedQuery = normalizeSearchText(query);
-
-  // 分割は元クエリ優先。接頭辞付き（お会いしたい等）は除去後も試す
   const segmentationQueries = [trimmedQuery];
   const strippedQuery = trimmedQuery.replace(HONORIFIC_PREFIX, '');
   if (strippedQuery && strippedQuery !== trimmedQuery) {
@@ -728,7 +786,11 @@ async function searchWordsMorphological(query, limit = 100) {
     }
   }
 
-  // 文章・活用形: Kuromoji でトークン化
+  return [];
+}
+
+async function searchWordsByKuromoji(query, limit = 100) {
+  const trimmedQuery = normalizeSearchText(query);
   try {
     const lookupTerms = await getLookupTerms(trimmedQuery);
     const tokenResults = lookupExactTerms(lookupTerms);
@@ -742,7 +804,7 @@ async function searchWordsMorphological(query, limit = 100) {
   return [];
 }
 
-export async function searchWords(query, _direction = 'jp-mn', limit = 100) {
+export async function searchWordsFast(query, _direction = 'jp-mn', limit = 100) {
   const trimmed = normalizeSearchText(query);
   if (!trimmed) return [];
 
@@ -757,18 +819,41 @@ export async function searchWords(query, _direction = 'jp-mn', limit = 100) {
 
   await warmUpDictionarySearch();
 
-  // 日本語・モンゴル語の両方で検索（direction は互換のため残し、無視する）
   const merged = await searchMergedSourcesWithV2(trimmed, limit);
   if (merged.length > 0) {
     return hydrateWords(merged);
   }
 
-  // V2 がまだ準備中なら term のみでも再検索（フォールバック）
   const termOnly = searchMergedSources(trimmed, limit);
   if (termOnly.length > 0) {
     return hydrateWords(termOnly);
   }
 
-  // 日本語の活用・複合語向けフォールバック
-  return hydrateWords(await searchWordsMorphological(trimmed, limit));
+  await warmUpV2SearchIndexes();
+  return hydrateWords(searchWordsByHeadwordSegmentation(trimmed, limit));
+}
+
+export async function searchWordsFollowUp(query, _direction = 'jp-mn', limit = 100) {
+  const trimmed = normalizeSearchText(query);
+  if (!trimmed) return [];
+
+  await warmUpV2SearchIndexes();
+  return hydrateWords(await searchWordsByKuromoji(trimmed, limit));
+}
+
+export async function searchWords(query, _direction = 'jp-mn', limit = 100) {
+  const fast = await searchWordsFast(query, _direction, limit);
+  if (fast.length > 0) {
+    return fast;
+  }
+
+  try {
+    return await withTimeout(
+      searchWordsFollowUp(query, _direction, limit),
+      KUROMOJI_SEARCH_TIMEOUT_MS,
+    );
+  } catch (error) {
+    console.warn('Kuromoji follow-up search skipped', error);
+    return [];
+  }
 }

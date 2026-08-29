@@ -10,6 +10,19 @@ export function katakanaToHiragana(text) {
   );
 }
 
+const DIALOGUE_SPEAKER_RE = /(?<=\S)\s+(?=[A-ZＡ-ＺА-ЯЁ][：:])/;
+
+export function splitDialogueLines(text) {
+  if (!text || !String(text).trim()) {
+    return [];
+  }
+  return String(text)
+    .trim()
+    .split(DIALOGUE_SPEAKER_RE)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export function parseExample(raw) {
   const colonIndex = raw.indexOf(': ');
   if (colonIndex === -1) {

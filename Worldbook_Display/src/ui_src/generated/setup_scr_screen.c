@@ -112,14 +112,43 @@ void setup_scr_screen(lv_ui *ui)
         lv_obj_add_flag(ui->battery_seg[i], LV_OBJ_FLAG_HIDDEN);
     }
 
-    /* Headword + reading + gloss (alignment adjusted at runtime for kanji vs word) */
-    ui->label_expression = create_centered_label(ui->screen, 32, 70, &font_wordbook_32);
-    ui->label_reading = create_centered_label(ui->screen, 108, 44, &font_wordbook_18);
-    ui->label_gloss = create_centered_label(ui->screen, 156, 36, &font_wordbook_18);
+    /* Charging mark ("+") just left of the battery outline. */
+    ui->battery_charge = lv_obj_create(ui->screen);
+    lv_obj_set_size(ui->battery_charge, 8, 8);
+    lv_obj_set_pos(ui->battery_charge, 160, 7);
+    lv_obj_set_style_bg_opa(ui->battery_charge, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui->battery_charge, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_all(ui->battery_charge, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_clear_flag(ui->battery_charge, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(ui->battery_charge, LV_OBJ_FLAG_HIDDEN);
+
+    ui->battery_charge_h = lv_obj_create(ui->battery_charge);
+    lv_obj_set_size(ui->battery_charge_h, 6, 2);
+    lv_obj_set_pos(ui->battery_charge_h, 1, 3);
+    lv_obj_set_style_bg_color(ui->battery_charge_h, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->battery_charge_h, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui->battery_charge_h, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui->battery_charge_h, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_clear_flag(ui->battery_charge_h, LV_OBJ_FLAG_SCROLLABLE);
+
+    ui->battery_charge_v = lv_obj_create(ui->battery_charge);
+    lv_obj_set_size(ui->battery_charge_v, 2, 6);
+    lv_obj_set_pos(ui->battery_charge_v, 3, 1);
+    lv_obj_set_style_bg_color(ui->battery_charge_v, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->battery_charge_v, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui->battery_charge_v, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui->battery_charge_v, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_clear_flag(ui->battery_charge_v, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* Headword + reading + gloss (geometry adjusted at runtime for kanji vs word) */
+    ui->label_expression = create_centered_label(ui->screen, 28, 60, &font_wordbook_32);
+    ui->label_reading = create_centered_label(ui->screen, 92, 54, &font_wordbook_18);
+    ui->label_gloss = create_centered_label(ui->screen, 150, 42, &font_wordbook_18);
     ui->label_hint = NULL;
 
     lv_obj_set_style_text_line_space(ui->label_expression, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_line_space(ui->label_reading, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(ui->label_reading, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(ui->label_gloss, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_update_layout(ui->screen);
 }

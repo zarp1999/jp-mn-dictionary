@@ -17,6 +17,9 @@ typedef struct
 	lv_obj_t *battery_body;   /* top-right outline */
 	lv_obj_t *battery_tip;    /* nub on the right */
 	lv_obj_t *battery_seg[3]; /* fill bars (left→right) */
+	lv_obj_t *battery_charge; /* "+" mark while charging */
+	lv_obj_t *battery_charge_h;
+	lv_obj_t *battery_charge_v;
 	lv_obj_t *wifi_icon;      /* container; hidden when no SoftAP client */
 	lv_obj_t *wifi_dot;
 	lv_obj_t *wifi_arc[3];    /* radio arcs, small→large */

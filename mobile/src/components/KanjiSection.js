@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
+import { useMeaningOverrides } from '../theme/MeaningOverridesContext';
 
 function createStyles(colors) {
   return StyleSheet.create({
@@ -107,7 +108,10 @@ function ReadingChips({ label, readings, styles }) {
   );
 }
 
-function KanjiCard({ kanji, onPress, t, styles }) {
+function KanjiCard({ kanji, onPress, t, styles, getKanjiMeaningsList }) {
+  const meanings = getKanjiMeaningsList(kanji);
+  const meaningMn = meanings.join('・');
+
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -118,13 +122,13 @@ function KanjiCard({ kanji, onPress, t, styles }) {
       <View style={styles.headerRow}>
         <Text style={styles.character}>{kanji.character}</Text>
         <View style={styles.meta}>
-          {kanji.meaningMn ? (
+          {meaningMn ? (
             <Text
               style={styles.metaText}
               numberOfLines={2}
               ellipsizeMode="tail"
             >
-              {kanji.meaningMn}
+              {meaningMn}
             </Text>
           ) : (
             <Text style={styles.metaText}>{t('showMeaning')}</Text>
@@ -142,6 +146,7 @@ function KanjiCard({ kanji, onPress, t, styles }) {
 export default function KanjiSection({ kanjiList, onKanjiPress }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  const { getKanjiMeaningsList } = useMeaningOverrides();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (!kanjiList || kanjiList.length === 0) {
@@ -157,6 +162,7 @@ export default function KanjiSection({ kanjiList, onKanjiPress }) {
           kanji={kanji}
           t={t}
           styles={styles}
+          getKanjiMeaningsList={getKanjiMeaningsList}
           onPress={() => onKanjiPress?.(kanji.character)}
         />
       ))}

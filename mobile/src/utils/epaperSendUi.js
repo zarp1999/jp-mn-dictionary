@@ -83,7 +83,7 @@ export async function confirmAndSendKanjiToEpaper(kanjiList, t, options = {}) {
   }
 
   try {
-    const result = await sendKanjiToEpaper(host, list);
+    const result = await sendKanjiToEpaper(host, list, options?.overrides ?? null);
     showEpaperAlert(
       t('epaperSendTitle'),
       t('epaperSendKanjiSuccess', result.sent),

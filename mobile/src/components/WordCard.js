@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
+import { useMeaningOverrides } from '../theme/MeaningOverridesContext';
 
 function createStyles(colors) {
   return StyleSheet.create({
@@ -54,8 +55,10 @@ function createStyles(colors) {
 
 export default function WordCard({ word, index = 0, isFavorite, onPress, onToggleFavorite }) {
   const { colors } = useTheme();
+  const { getWordDefinitions } = useMeaningOverrides();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isEven = index % 2 === 0;
+  const definitions = getWordDefinitions(word);
 
   return (
     <TouchableOpacity
@@ -73,7 +76,7 @@ export default function WordCard({ word, index = 0, isFavorite, onPress, onToggl
           </Text>
         </View>
         <Text style={styles.definition} numberOfLines={2}>
-          {word.definitions.join(', ')}
+          {definitions.join(', ')}
         </Text>
       </View>
       <TouchableOpacity

@@ -11,7 +11,9 @@ import {
   Platform,
 } from 'react-native';
 import WordCard from '../components/WordCard';
+import KanjiFavoriteCard from '../components/KanjiFavoriteCard';
 import ScreenHeader from '../components/ScreenHeader';
+import { isKanjiFavorite } from '../utils/favorites';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
 import {
@@ -21,6 +23,8 @@ import {
   loadEpaperHost,
   sendWordsToEpaper,
 } from '../utils/epaperSync';
+import { useEpaperIntro } from '../theme/EpaperIntroContext';
+import { useMeaningOverrides } from '../theme/MeaningOverridesContext';
 
 function createStyles(colors) {
   return StyleSheet.create({
@@ -120,6 +124,8 @@ function confirmSend(title, message, cancelLabel, confirmLabel) {
 export default function FavoritesScreen({ navigation, favorites, onToggleFavorite }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  const { confirmHasDevice } = useEpaperIntro();
+  const { overrides } = useMeaningOverrides();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const favoriteList = Object.values(favorites);
   const [sending, setSending] = useState(false);
@@ -128,11 +134,15 @@ export default function FavoritesScreen({ navigation, favorites, onToggleFavorit
     navigation.navigate('WordDetail', { word });
   }, [navigation]);
 
+  const handlePressKanji = useCallback((item) => {
+    navigation.navigate('KanjiDetail', { character: item.character });
+  }, [navigation]);
+
   const runSend = useCallback(async () => {
     setSending(true);
     try {
       const host = await loadEpaperHost();
-      const result = await sendWordsToEpaper(host, favoriteList);
+      const result = await sendWordsToEpaper(host, favoriteList, overrides);
       showAlert(
         t('epaperSendTitle'),
         result.truncated
@@ -150,10 +160,15 @@ export default function FavoritesScreen({ navigation, favorites, onToggleFavorit
     } finally {
       setSending(false);
     }
-  }, [favoriteList, t]);
+  }, [favoriteList, overrides, t]);
 
   const handleSendPress = useCallback(async () => {
     if (sending || favoriteList.length === 0) {
+      return;
+    }
+
+    const hasDevice = await confirmHasDevice();
+    if (!hasDevice) {
       return;
     }
 
@@ -175,7 +190,7 @@ export default function FavoritesScreen({ navigation, favorites, onToggleFavorit
     if (ok) {
       await runSend();
     }
-  }, [favoriteList.length, runSend, sending, t]);
+  }, [confirmHasDevice, favoriteList.length, runSend, sending, t]);
 
   const sendButton = favoriteList.length > 0 ? (
     <TouchableOpacity
@@ -220,13 +235,23 @@ export default function FavoritesScreen({ navigation, favorites, onToggleFavorit
             data={favoriteList}
             keyExtractor={(item) => String(item.id)}
             renderItem={({ item, index }) => (
-              <WordCard
-                word={item}
-                index={index}
-                isFavorite
-                onPress={() => handlePressWord(item)}
-                onToggleFavorite={onToggleFavorite}
-              />
+              isKanjiFavorite(item) ? (
+                <KanjiFavoriteCard
+                  item={item}
+                  index={index}
+                  isFavorite
+                  onPress={() => handlePressKanji(item)}
+                  onToggleFavorite={onToggleFavorite}
+                />
+              ) : (
+                <WordCard
+                  word={item}
+                  index={index}
+                  isFavorite
+                  onPress={() => handlePressWord(item)}
+                  onToggleFavorite={onToggleFavorite}
+                />
+              )
             )}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}

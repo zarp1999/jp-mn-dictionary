@@ -106,6 +106,11 @@ export default function ConjugationSection({ headword }) {
           setResult(next);
           setSelectedMood(next?.groups?.[0]?.id ?? null);
         }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.warn('Conjugation section failed', error);
+        }
       });
 
     return () => {

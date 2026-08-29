@@ -1,0 +1,8 @@
+{
+  "name": "japanese-tokenizer",
+  "version": "1.0.1",
+  "description": "Native Japanese tokenizer (MeCab on iOS, Kuromoji on Android)",
+  "main": "index.js",
+  "keywords": ["react-native", "expo"],
+  "license": "UNLICENSED"
+}

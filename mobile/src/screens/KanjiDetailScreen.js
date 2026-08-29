@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,11 @@ import {
 } from 'react-native';
 import { getKanjiEntry, filterKnownSimilarKanji } from '../utils/kanji';
 import { KANJI_WORD_POSITION } from '../utils/kanjiWordSearch';
+import DetailHeader from '../components/DetailHeader';
+import MeaningEditModal from '../components/MeaningEditModal';
+import { toKanjiFavorite } from '../utils/favorites';
+import { useMeaningOverrides } from '../theme/MeaningOverridesContext';
+import { parseMeaningsText } from '../utils/meaningOverrides';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -18,6 +23,9 @@ function createStyles(colors) {
     container: {
       flex: 1,
       backgroundColor: colors.bg,
+    },
+    headerWrap: {
+      paddingHorizontal: 16,
     },
     scroll: {
       flex: 1,
@@ -111,6 +119,21 @@ function createStyles(colors) {
     },
     meaningLabel: {
       color: colors.primaryText,
+    },
+    labelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    editBtn: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    editBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
     },
     readingBlock: {
       marginBottom: 12,
@@ -256,11 +279,23 @@ function shortenRadical(radical) {
   return first || radical;
 }
 
-export default function KanjiDetailScreen({ navigation, route }) {
+export default function KanjiDetailScreen({
+  navigation,
+  route,
+  favorites = {},
+  onToggleFavorite,
+}) {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const character = route.params?.character || '';
+  const [editVisible, setEditVisible] = useState(false);
+  const {
+    getKanjiMeaningsList,
+    hasKanjiOverride,
+    saveKanjiOverride,
+    resetKanjiOverride,
+  } = useMeaningOverrides();
 
   const kanji = useMemo(
     () => (character ? getKanjiEntry(character) : null),
@@ -271,6 +306,27 @@ export default function KanjiDetailScreen({ navigation, route }) {
     () => (kanji ? filterKnownSimilarKanji(kanji.similarKanji) : []),
     [kanji],
   );
+
+  const meaningsList = useMemo(
+    () => (kanji ? getKanjiMeaningsList(kanji) : []),
+    [kanji, getKanjiMeaningsList],
+  );
+
+  const handleSaveMeaning = useCallback(async (text) => {
+    if (!kanji) {
+      return;
+    }
+    await saveKanjiOverride(kanji.character, parseMeaningsText(text));
+    setEditVisible(false);
+  }, [kanji, saveKanjiOverride]);
+
+  const handleResetMeaning = useCallback(async () => {
+    if (!kanji) {
+      return;
+    }
+    await resetKanjiOverride(kanji.character);
+    setEditVisible(false);
+  }, [kanji, resetKanjiOverride]);
 
   if (!kanji) {
     return (
@@ -289,6 +345,15 @@ export default function KanjiDetailScreen({ navigation, route }) {
       </SafeAreaView>
     );
   }
+
+  const favoriteItem = toKanjiFavorite(kanji);
+  const isFavorite = !!favorites[favoriteItem.id];
+
+  const handleToggleFavorite = () => {
+    if (onToggleFavorite) {
+      onToggleFavorite(favoriteItem);
+    }
+  };
 
   const gradeShort = shortenGrade(kanji.grade, (n) => t('gradeYear', n));
   const radicalShort = shortenRadical(kanji.radical);
@@ -320,22 +385,18 @@ export default function KanjiDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.headerWrap}>
+        <DetailHeader
+          onBack={() => navigation.goBack()}
+          isFavorite={isFavorite}
+          onToggleFavorite={handleToggleFavorite}
+        />
+      </View>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-            accessibilityLabel={t('back')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.backIcon}>←</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.heroCard}>
           <View style={styles.heroRow}>
             <Text style={styles.character}>{kanji.character}</Text>
@@ -358,18 +419,30 @@ export default function KanjiDetailScreen({ navigation, route }) {
           </View>
         )}
 
-        {kanji.meaningsMnList.length > 0 && (
-          <View style={[styles.card, styles.meaningCard]}>
-            <Text style={[styles.sectionLabel, styles.meaningLabel]}>
+        <View style={[styles.card, styles.meaningCard]}>
+          <View style={styles.labelRow}>
+            <Text style={[styles.sectionLabel, styles.meaningLabel, { marginBottom: 0 }]}>
               {t('mongolianMeanings')}
             </Text>
-            {kanji.meaningsMnList.map((meaning, index) => (
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => setEditVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('editMeaning')}
+            >
+              <Text style={styles.editBtnText}>{t('editMeaning')}</Text>
+            </TouchableOpacity>
+          </View>
+          {meaningsList.length > 0 ? (
+            meaningsList.map((meaning, index) => (
               <Text key={`${index}-${meaning}`} style={styles.meaningLine}>
                 {`${index + 1}. ${meaning}`}
               </Text>
-            ))}
-          </View>
-        )}
+            ))
+          ) : (
+            <Text style={styles.meaningLine}>{t('showMeaning')}</Text>
+          )}
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>{t('kanjiWordSearchSection')}</Text>
@@ -417,6 +490,16 @@ export default function KanjiDetailScreen({ navigation, route }) {
           </View>
         )}
       </ScrollView>
+
+      <MeaningEditModal
+        visible={editVisible}
+        title={t('meaningEditKanjiTitle', kanji.character)}
+        initialMeanings={meaningsList}
+        hasOverride={hasKanjiOverride(kanji.character)}
+        onSave={handleSaveMeaning}
+        onReset={handleResetMeaning}
+        onClose={() => setEditVisible(false)}
+      />
     </SafeAreaView>
   );
 }
