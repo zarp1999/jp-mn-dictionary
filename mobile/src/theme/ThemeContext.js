@@ -1,3 +1,6 @@
+/**
+ * 【機能】ライト / ダークテーマの切り替えと colors の提供
+ */
 import React, {
   createContext,
   useCallback,

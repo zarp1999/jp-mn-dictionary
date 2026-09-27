@@ -1,3 +1,9 @@
+/**
+ * 【機能】辞書 v2（dictionary_mn_v2.json）の索引・訳の解決
+ *
+ * 役割: 見出し語+読みでモンゴル語/英語訳を引く、v2 単独検索
+ * 呼び出し元: dictionary.js の hydrate / 検索マージ
+ */
 import { Platform } from 'react-native';
 import rawTermData from '../data/term_bank_1.json';
 import staticV2Data from './v2Data';
@@ -35,6 +41,19 @@ function makeLookupKey(headword, reading) {
   return `${headword}\0${reading || ''}`;
 }
 
+/**
+ * Prefer kanji as headword. When kanji is empty (kana-only entries),
+ * fall back to furigana so those rows remain searchable and displayable.
+ */
+function getV2HeadwordAndReading(entry) {
+  const kanji = normalizeSearchText(entry?.kanji || '');
+  const reading = normalizeSearchText(entry?.furigana || '');
+  if (kanji) {
+    return { headword: kanji, reading };
+  }
+  return { headword: reading, reading };
+}
+
 function stripHeadwordPrefix(text, headword) {
   if (!text || !headword) {
     return text;
@@ -52,6 +71,18 @@ function parseTranslationMn(text, headword = '') {
   return text
     .split(';')
     .map((part) => stripHeadwordPrefix(part.trim(), headword))
+    .filter(Boolean);
+}
+
+/** English glosses use `|` between senses (JMDict-style). */
+function parseTranslationEn(text) {
+  if (!text || !text.trim()) {
+    return [];
+  }
+
+  return text
+    .split('|')
+    .map((part) => part.trim())
     .filter(Boolean);
 }
 
@@ -191,11 +222,36 @@ export function getV2Definitions(headword, reading) {
   return parseTranslationMn(entry.translation_mn, headword);
 }
 
+export function getV2EnglishDefinitions(headword, reading) {
+  if (!_v2PreferredByKey || !_rawV2Data) {
+    return [];
+  }
+
+  const key = makeLookupKey(
+    normalizeSearchText(headword),
+    normalizeSearchText(reading || ''),
+  );
+  const rawIndex = _v2PreferredByKey.get(key);
+  if (rawIndex === undefined) {
+    return [];
+  }
+
+  const entry = _rawV2Data[rawIndex];
+  if (!entry?.translation_en?.trim()) {
+    return [];
+  }
+  return parseTranslationEn(entry.translation_en);
+}
+
 export function resolveDefinitions(headword, reading, termBankDefinitions) {
   if (termBankDefinitions?.length) {
     return termBankDefinitions;
   }
   return getV2Definitions(headword, reading);
+}
+
+export function resolveEnglishDefinitions(headword, reading) {
+  return getV2EnglishDefinitions(headword, reading);
 }
 
 export function getSingleKanjiMnMeaning(character) {
@@ -271,12 +327,15 @@ async function buildV2PreferredIndex() {
 
   for (let i = 0; i < raw.length; i += 1) {
     const entry = raw[i];
-    const headword = normalizeSearchText(entry.kanji || '');
-    if (!headword || !entry.translation_mn?.trim()) {
+    if (!entry.translation_mn?.trim()) {
       continue;
     }
 
-    const reading = normalizeSearchText(entry.furigana || '');
+    const { headword, reading } = getV2HeadwordAndReading(entry);
+    if (!headword) {
+      continue;
+    }
+
     const key = makeLookupKey(headword, reading);
     const existingIndex = preferredByKey.get(key);
 
@@ -312,8 +371,7 @@ async function buildV2SearchIndexes() {
 
   for (const rawIndex of _v2PreferredByKey.values()) {
     const entry = _rawV2Data[rawIndex];
-    const headword = normalizeSearchText(entry.kanji || '');
-    const reading = normalizeSearchText(entry.furigana || '');
+    const { headword, reading } = getV2HeadwordAndReading(entry);
 
     pushIndexValue(exactHeadword, headword, rawIndex);
     pushIndexValue(exactReading, reading, rawIndex);
@@ -369,12 +427,13 @@ export async function warmUpV2SearchIndexes() {
 
 function v2RawIndexToWord(rawIndex) {
   const entry = _rawV2Data[rawIndex];
-  const headword = normalizeSearchText(entry.kanji || '');
+  const { headword, reading } = getV2HeadwordAndReading(entry);
   return {
     id: V2_ID_OFFSET + rawIndex,
     headword,
-    reading: normalizeSearchText(entry.furigana || ''),
+    reading,
     definitions: parseTranslationMn(entry.translation_mn, headword),
+    definitionsEn: parseTranslationEn(entry.translation_en),
     examples: [],
     source: entry.source || 'v2',
   };
@@ -433,22 +492,22 @@ function searchV2JapaneseIndexed(query, limit) {
     addScoredMatch(matches, seen, rawIndex, 0);
   }
   for (const rawIndex of _v2ExactReadingIndex.get(query) || []) {
-    addScoredMatch(matches, seen, rawIndex, 3);
+    addScoredMatch(matches, seen, rawIndex, 1);
   }
 
   for (const rawIndex of collectPrefixFromSorted(_v2SortedHeadwords, query, limit * 2)) {
-    const headword = normalizeSearchText(_rawV2Data[rawIndex].kanji || '');
+    const { headword } = getV2HeadwordAndReading(_rawV2Data[rawIndex]);
     if (headword === query) {
       continue;
     }
-    addScoredMatch(matches, seen, rawIndex, 1);
+    addScoredMatch(matches, seen, rawIndex, 2);
   }
   for (const rawIndex of collectPrefixFromSorted(_v2SortedReadings, query, limit * 2)) {
-    const reading = normalizeSearchText(_rawV2Data[rawIndex].furigana || '');
+    const { reading } = getV2HeadwordAndReading(_rawV2Data[rawIndex]);
     if (reading === query) {
       continue;
     }
-    addScoredMatch(matches, seen, rawIndex, 4);
+    addScoredMatch(matches, seen, rawIndex, 3);
   }
 
   if (matches.length < limit && query.length >= 2) {
@@ -456,12 +515,15 @@ function searchV2JapaneseIndexed(query, limit) {
       if (seen.has(rawIndex)) {
         continue;
       }
-      const entry = _rawV2Data[rawIndex];
-      const headword = normalizeSearchText(entry.kanji || '');
-      const reading = normalizeSearchText(entry.furigana || '');
+      const { headword, reading } = getV2HeadwordAndReading(_rawV2Data[rawIndex]);
       if (headword.includes(query) && !headword.startsWith(query)) {
-        addScoredMatch(matches, seen, rawIndex, 2);
-      } else if (reading.includes(query) && !reading.startsWith(query)) {
+        addScoredMatch(matches, seen, rawIndex, 4);
+      } else if (
+        reading
+        && reading !== headword
+        && reading.includes(query)
+        && !reading.startsWith(query)
+      ) {
         addScoredMatch(matches, seen, rawIndex, 5);
       }
       if (matches.length >= limit * 3) {
@@ -472,8 +534,8 @@ function searchV2JapaneseIndexed(query, limit) {
 
   matches.sort((a, b) => {
     if (a.score !== b.score) return a.score - b.score;
-    const aLen = normalizeSearchText(_rawV2Data[a.rawIndex].kanji || '').length;
-    const bLen = normalizeSearchText(_rawV2Data[b.rawIndex].kanji || '').length;
+    const aLen = getV2HeadwordAndReading(_rawV2Data[a.rawIndex]).headword.length;
+    const bLen = getV2HeadwordAndReading(_rawV2Data[b.rawIndex]).headword.length;
     if (aLen !== bLen) return aLen - bLen;
     return a.rawIndex - b.rawIndex;
   });
@@ -519,8 +581,46 @@ function searchV2MongolianScored(query, limit) {
   return matches.slice(0, limit);
 }
 
+function searchV2EnglishScored(query, limit) {
+  if (!_v2PreferredByKey || !_rawV2Data) {
+    return [];
+  }
+
+  const matches = [];
+  for (const rawIndex of _v2PreferredByKey.values()) {
+    const entry = _rawV2Data[rawIndex];
+    const text = (entry.translation_en || '').toLowerCase();
+    if (!text.includes(query)) {
+      continue;
+    }
+    let score = 2;
+    if (text === query) score = 0;
+    else if (text.startsWith(query) || text.split('|').some((part) => part.trim() === query)) {
+      score = 1;
+    }
+    matches.push({
+      word: v2RawIndexToWord(rawIndex),
+      score,
+    });
+    if (matches.length >= limit * 5) {
+      break;
+    }
+  }
+
+  matches.sort((a, b) => {
+    if (a.score !== b.score) return a.score - b.score;
+    if (a.word.headword.length !== b.word.headword.length) {
+      return a.word.headword.length - b.word.headword.length;
+    }
+    return a.word.id - b.word.id;
+  });
+
+  return matches.slice(0, limit);
+}
+
 export async function searchV2WordsScored(query, direction = 'jp-mn', limit = 100) {
-  const q = normalizeSearchQuery(query, { lowerCase: direction === 'mn-jp' });
+  const lowerCase = direction === 'mn-jp' || direction === 'en-jp';
+  const q = normalizeSearchQuery(query, { lowerCase });
   if (!q) {
     return [];
   }
@@ -532,6 +632,9 @@ export async function searchV2WordsScored(query, direction = 'jp-mn', limit = 10
 
   if (direction === 'jp-mn') {
     return searchV2JapaneseIndexed(q, limit);
+  }
+  if (direction === 'en-jp') {
+    return searchV2EnglishScored(q, limit);
   }
 
   return searchV2MongolianScored(q, limit);

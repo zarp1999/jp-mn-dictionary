@@ -1,5 +1,11 @@
+/**
+ * 【機能】JLPT 単語リスト用データの提供
+ *
+ * 呼び出し元: WordListScreen / WordListByLevelScreen
+ */
 import jlptVocabMap from '../data/jlpt_vocab_map.json';
 import { getAllWords, hydrateWords } from './dictionary';
+import { compareWordsForList } from './listSort';
 
 /** JLPT levels shown in the word list menu (easiest first). */
 export const JLPT_VOCAB_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'];
@@ -26,7 +32,7 @@ export function countWordsByJlpt(level) {
 
 /**
  * Dictionary words for a JLPT level (term_bank matches only).
- * Order follows jlpt_vocab_map (reading-sorted).
+ * Order: headword length, then headword (ja), then reading — not gojuon-by-reading.
  * Returns light entries; call hydrateWords() before detail / e-Paper send.
  */
 export function listWordsByJlpt(level) {
@@ -47,6 +53,7 @@ export function listWordsByJlpt(level) {
       words.push(word);
     }
   }
+  words.sort(compareWordsForList);
   return words;
 }
 

@@ -1,3 +1,9 @@
+/**
+ * 【画面】あるレベルの文法一覧（検索あり）
+ *
+ * 役割: 文法パターンのリストと検索
+ * 機能: utils/grammar.js
+ */
 import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
@@ -10,6 +16,7 @@ import {
 } from 'react-native';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
+import { useDisableDrawerSwipe } from '../navigation/useDisableDrawerSwipe';
 import GrammarCard from '../components/GrammarCard';
 import {
   listGrammarByLevel,
@@ -63,7 +70,7 @@ function createStyles(colors) {
       backgroundColor: colors.bg,
       borderRadius: 12,
       paddingHorizontal: 14,
-      paddingVertical: 10,
+      minHeight: 44,
       gap: 8,
       borderWidth: 0.5,
       borderColor: colors.border,
@@ -73,6 +80,7 @@ function createStyles(colors) {
     },
     searchInput: {
       flex: 1,
+      minHeight: 44,
       fontSize: 15,
       color: colors.textPrimary,
     },
@@ -96,6 +104,7 @@ function createStyles(colors) {
 export default function GrammarListByLevelScreen({ navigation, route }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  useDisableDrawerSwipe();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [query, setQuery] = useState('');
 
@@ -155,7 +164,10 @@ export default function GrammarListByLevelScreen({ navigation, route }) {
             textContentType="none"
           />
           {query.length > 0 ? (
-            <TouchableOpacity onPress={() => setQuery('')}>
+            <TouchableOpacity
+              onPress={() => setQuery('')}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
               <Text style={styles.clearBtn}>✕</Text>
             </TouchableOpacity>
           ) : null}

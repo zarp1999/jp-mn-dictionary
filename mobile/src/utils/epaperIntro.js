@@ -1,3 +1,8 @@
+/**
+ * 【機能】e-Paper 説明モーダルの表示済みフラグ・ショップ URL
+ *
+ * 呼び出し元: EpaperIntroContext, SettingsScreen
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking } from 'react-native';
 

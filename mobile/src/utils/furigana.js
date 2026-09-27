@@ -1,3 +1,6 @@
+/**
+ * 【機能】漢字にふりがなを振る表示用ヘルパー
+ */
 import { tokenizeJapanese } from './kuromojiTokenizer';
 
 const KANJI_REGEX = /[\u4e00-\u9fff\u3400-\u4dbf]/;

@@ -1,3 +1,6 @@
+/**
+ * 【機能】e-Paper に送る一覧の「送信範囲」（何件目〜）計算
+ */
 import { EPAPER_MAX_WORDS } from './epaperSync';
 
 /**

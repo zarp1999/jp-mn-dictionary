@@ -1,3 +1,10 @@
+/**
+ * 【画面遷移】単語リスト（JLPT）まわりのスタック（ナビ）
+ *
+ * 役割: レベル一覧 → レベル別単語一覧 → 単語詳細
+ * 画面本体: screens/WordListScreen.js / WordListByLevelScreen.js
+ * 入口: App.js の Drawer.Screen name="WordList"
+ */
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -11,7 +18,7 @@ const Stack = createNativeStackNavigator();
 
 export default function WordListStack({ favorites, onToggleFavorite }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: true }}>
       <Stack.Screen name="WordListMain" component={WordListScreen} />
       <Stack.Screen name="WordListByLevel">
         {(props) => (

@@ -1,3 +1,10 @@
+/**
+ * 【画面】部首・画数で漢字を探す
+ *
+ * 役割: フィルター UI と候補漢字の一覧
+ * 機能: utils/kanjiSearch.js
+ * 漢字タップ → SearchMain へ戻り、その文字で検索
+ */
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
@@ -11,6 +18,7 @@ import {
 } from 'react-native';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
+import { useDisableDrawerSwipe } from '../navigation/useDisableDrawerSwipe';
 import {
   getStrokeCountOptions,
   getRadicalSearchOptions,
@@ -184,6 +192,7 @@ function createStyles(colors) {
 export default function KanjiSearchScreen({ navigation }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  useDisableDrawerSwipe();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const strokeOptions = useMemo(() => getStrokeCountOptions(), []);
@@ -250,7 +259,7 @@ export default function KanjiSearchScreen({ navigation }) {
 
   const handleSelectKanji = useCallback(
     (character) => {
-      navigation.navigate('KanjiDetail', { character });
+      navigation.navigate('SearchMain', { query: character });
     },
     [navigation],
   );

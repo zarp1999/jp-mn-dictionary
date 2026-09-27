@@ -1,3 +1,9 @@
+/**
+ * 【画面】ある JLPT レベルの単語一覧
+ *
+ * 役割: レベル内の単語をリスト表示し、詳細へ遷移
+ * 機能: utils/jlptVocab.js, utils/dictionary.js
+ */
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import {
   View,
@@ -14,6 +20,7 @@ import WordCard from '../components/WordCard';
 import EpaperRangePicker from '../components/EpaperRangePicker';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
+import { useDisableDrawerSwipe } from '../navigation/useDisableDrawerSwipe';
 import { hydrateJlptWords, listWordsByJlpt } from '../utils/jlptVocab';
 import {
   EPAPER_WIFI_PASSWORD,
@@ -131,6 +138,7 @@ export default function WordListByLevelScreen({
 }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  useDisableDrawerSwipe();
   const { confirmHasDevice } = useEpaperIntro();
   const { overrides } = useMeaningOverrides();
   const styles = useMemo(() => createStyles(colors), [colors]);

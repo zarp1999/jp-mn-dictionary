@@ -1,3 +1,9 @@
+/**
+ * 【画面部品】左ドロワーのメニュー一覧
+ *
+ * 役割: 検索・写真から検索・お気に入り・単語/漢字/文法/スラング・設定への導線
+ * name は App.js の Drawer.Screen 名と一致させる
+ */
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
@@ -60,8 +66,10 @@ export default function DrawerContent({ state, navigation, favoritesCount }) {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
+  // name は App.js の Drawer.Screen 名と一致させること
   const menuItems = [
     { name: 'Search', label: t('navSearch'), icon: '🔍' },
+    { name: 'Ocr', label: t('navOcr'), icon: '📷' }, // 写真から検索 → OcrStack
     { name: 'Favorites', label: t('navFavorites'), icon: '⭐' },
     { name: 'WordList', label: t('navWordList'), icon: '語' },
     { name: 'KanjiList', label: t('navKanjiList'), icon: '漢' },

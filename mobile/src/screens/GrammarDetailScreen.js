@@ -1,3 +1,9 @@
+/**
+ * 【画面】文法の詳細
+ *
+ * 役割: 意味・接続・注意・出典などの表示
+ * 機能: utils/grammar.js
+ */
 import React, { useMemo } from 'react';
 import {
   View,
@@ -10,6 +16,7 @@ import {
 import ExampleSentence from '../components/ExampleSentence';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
+import { useDisableDrawerSwipe } from '../navigation/useDisableDrawerSwipe';
 import {
   getGrammarById,
   getGrammarHeadwordLine,
@@ -150,6 +157,7 @@ function createStyles(colors) {
 export default function GrammarDetailScreen({ navigation, route }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  useDisableDrawerSwipe();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const grammar = getGrammarById(route.params?.grammarId);
 

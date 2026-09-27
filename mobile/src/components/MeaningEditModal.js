@@ -1,3 +1,8 @@
+/**
+ * 【画面部品】モンゴル語訳をユーザーが編集するモーダル
+ *
+ * 機能: utils/meaningOverrides.js に保存
+ */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,

@@ -1,3 +1,9 @@
+/**
+ * 【画面】スラングの詳細
+ *
+ * 役割: 意味・例・出典リンクなどの表示
+ * 機能: utils/slang.js
+ */
 import React, { useMemo, useCallback } from 'react';
 import {
   View,
@@ -11,6 +17,7 @@ import {
 import ExampleSentence from '../components/ExampleSentence';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
+import { useDisableDrawerSwipe } from '../navigation/useDisableDrawerSwipe';
 import { formatSlangTags, getSlangById } from '../utils/slang';
 
 function createStyles(colors) {
@@ -153,6 +160,7 @@ function createStyles(colors) {
 export default function SlangDetailScreen({ navigation, route }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  useDisableDrawerSwipe();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const slang = getSlangById(route.params?.slangId);
 

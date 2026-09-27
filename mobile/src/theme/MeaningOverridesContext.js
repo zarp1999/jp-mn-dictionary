@@ -1,3 +1,8 @@
+/**
+ * 【機能】ユーザー編集訳の Context（React 全体に渡す）
+ *
+ * 実体の保存処理: utils/meaningOverrides.js
+ */
 import React, {
   createContext,
   useCallback,

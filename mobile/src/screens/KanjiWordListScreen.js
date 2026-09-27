@@ -1,3 +1,9 @@
+/**
+ * 【画面】ある漢字を含む語の一覧
+ *
+ * 役割: 接頭/中/接尾などの位置で語を絞り込み表示
+ * 機能: utils/kanjiWordSearch.js
+ */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
@@ -11,6 +17,7 @@ import {
 import WordCard from '../components/WordCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
+import { useDisableDrawerSwipe } from '../navigation/useDisableDrawerSwipe';
 import {
   searchWordsByKanjiPosition,
   getKanjiWordSearchTitleKey,
@@ -88,10 +95,12 @@ export default function KanjiWordListScreen({
 }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  useDisableDrawerSwipe();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const character = route.params?.character || '';
   const position = route.params?.position || KANJI_WORD_POSITION.prefix;
+  const searchOnWordPick = route.params?.searchOnWordPick === true;
 
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -126,8 +135,12 @@ export default function KanjiWordListScreen({
   }, [character, position, t]);
 
   const handlePressWord = useCallback((word) => {
+    if (searchOnWordPick) {
+      navigation.navigate('SearchMain', { query: word.headword || '' });
+      return;
+    }
     navigation.navigate('WordDetail', { word });
-  }, [navigation]);
+  }, [navigation, searchOnWordPick]);
 
   const renderItem = useCallback(({ item, index }) => (
     <WordCard

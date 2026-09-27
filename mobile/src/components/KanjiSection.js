@@ -1,3 +1,8 @@
+/**
+ * 【画面部品】単語詳細内の「漢字」セクション
+ *
+ * 機能: utils/kanji.js で単語に含まれる漢字を出し、タップで漢字詳細へ
+ */
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useLocale } from '../i18n/LocaleContext';

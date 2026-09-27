@@ -1,4 +1,12 @@
+/**
+ * 【画面】検索
+ *
+ * 役割: 検索バー・結果一覧・検索履歴の見た目と操作
+ * 機能: utils/dictionary.js（単語検索・文貼り付け分解）, utils/grammar.js / slang.js（横断検索）, utils/searchHistory.js
+ * 遷移: navigation/SearchStack.js → WordDetail など
+ */
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -11,7 +19,13 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { searchWordsFast, searchWordsFollowUp, warmUpDictionarySearch } from '../utils/dictionary';
+import {
+  searchWordsFast,
+  searchWordsFollowUp,
+  searchWordsFromSentence,
+  isSentenceLikeQuery,
+  warmUpDictionarySearch,
+} from '../utils/dictionary';
 import { searchAllGrammar } from '../utils/grammar';
 import { searchAllSlang } from '../utils/slang';
 import {
@@ -52,7 +66,7 @@ function createStyles(colors) {
       backgroundColor: colors.bg,
       borderRadius: 12,
       paddingHorizontal: 14,
-      paddingVertical: 10,
+      minHeight: 44,
       gap: 8,
       borderWidth: 0.5,
       borderColor: colors.border,
@@ -62,6 +76,7 @@ function createStyles(colors) {
     },
     searchInput: {
       flex: 1,
+      minHeight: 44,
       fontSize: 15,
       color: colors.textPrimary,
     },
@@ -170,7 +185,7 @@ function createStyles(colors) {
   });
 }
 
-export default function SearchScreen({ navigation, favorites, onToggleFavorite }) {
+export default function SearchScreen({ navigation, route, favorites, onToggleFavorite }) {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -185,6 +200,28 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
   const [searchError, setSearchError] = useState(null);
   const [history, setHistory] = useState([]);
   const searchGenRef = useRef(0);
+  const isSentenceMode = Boolean(debouncedQuery.trim()) && isSentenceLikeQuery(debouncedQuery);
+
+  useFocusEffect(
+    useCallback(() => {
+      const incomingQuery = route.params?.query;
+      if (!incomingQuery || typeof incomingQuery !== 'string') {
+        return undefined;
+      }
+
+      searchGenRef.current += 1;
+      setQuery(incomingQuery);
+      setDebouncedQuery(incomingQuery);
+      setSearchError(null);
+      setResults([]);
+      setGrammarResults([]);
+      setSlangResults([]);
+      setIsRefining(false);
+      navigation.setParams({ query: undefined });
+
+      return undefined;
+    }, [navigation, route.params?.query]),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -261,12 +298,38 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
     setIsRefining(false);
     setSearchError(null);
 
+    const isStale = () => cancelled || searchGenRef.current !== gen;
+
+    if (isSentenceLikeQuery(debouncedQuery)) {
+      setGrammarResults([]);
+      setSlangResults([]);
+
+      searchWordsFromSentence(debouncedQuery, 'jp-mn', 100)
+        .then(({ words }) => {
+          if (isStale()) {
+            return;
+          }
+          setResults(words);
+          setIsSearching(false);
+        })
+        .catch((error) => {
+          console.error('Sentence search failed', error);
+          if (!isStale()) {
+            setResults([]);
+            setIsSearching(false);
+            setSearchError(t('searchFailed'));
+          }
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const grammarHits = searchAllGrammar(debouncedQuery);
     const slangHits = searchAllSlang(debouncedQuery);
     setGrammarResults(grammarHits);
     setSlangResults(slangHits);
-
-    const isStale = () => cancelled || searchGenRef.current !== gen;
 
     searchWordsFast(debouncedQuery, 'jp-mn', 100)
       .then((data) => {
@@ -550,7 +613,10 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
             textContentType="none"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => handleChangeText('')}>
+            <TouchableOpacity
+              onPress={() => handleChangeText('')}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
               <Text style={styles.clearBtn}>✕</Text>
             </TouchableOpacity>
           )}
@@ -592,13 +658,18 @@ export default function SearchScreen({ navigation, favorites, onToggleFavorite }
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.list}
           keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         />
       ) : isQueryPending ? (
         <View style={styles.emptyState} />
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>{t('searchNotFound', debouncedQuery)}</Text>
+          <Text style={styles.emptyText}>
+            {isSentenceMode
+              ? t('searchSentenceNoWords')
+              : t('searchNotFound', debouncedQuery)}
+          </Text>
         </View>
       )}
     </SafeAreaView>

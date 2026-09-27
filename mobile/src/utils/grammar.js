@@ -1,3 +1,9 @@
+/**
+ * 【機能】文法データの読込・レベル別取得・検索
+ *
+ * データ: data/grammar_mn.json
+ * 呼び出し元: Grammar*Screen, SearchScreen（横断検索）
+ */
 import grammarData from '../data/grammar_mn.json';
 
 export const GRAMMAR_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'];

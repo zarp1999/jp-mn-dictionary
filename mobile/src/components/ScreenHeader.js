@@ -1,3 +1,6 @@
+/**
+ * 【画面部品】画面上部のタイトル行（☰ メニュー + タイトル）
+ */
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

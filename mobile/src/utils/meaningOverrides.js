@@ -1,4 +1,11 @@
+/**
+ * 【機能】ユーザーが編集した訳（オーバーライド）の保存・適用
+ *
+ * 役割: 単語のモンゴル語訳・漢字意味を端末に保存し、表示時に差し替える
+ * 呼び出し元: MeaningOverridesContext, WordDetail / KanjiDetail
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { resolveEnglishDefinitions } from './translationLookup';
 
 const STORAGE_KEY = '@jp_mn_meaning_overrides';
 
@@ -60,6 +67,24 @@ export function getWordDefinitions(word, overrides) {
   return Array.isArray(word.definitions) ? word.definitions : [];
 }
 
+/** English glosses are not user-editable; from dictionary data (lazy lookup if needed). */
+export function getWordEnglishDefinitions(word) {
+  if (!word) {
+    return [];
+  }
+  if (Array.isArray(word.definitionsEn) && word.definitionsEn.length > 0) {
+    return word.definitionsEn;
+  }
+  if (word.headword) {
+    const resolved = resolveEnglishDefinitions(word.headword, word.reading);
+    if (resolved.length && !Array.isArray(word.definitionsEn)) {
+      word.definitionsEn = resolved;
+    }
+    return resolved;
+  }
+  return [];
+}
+
 export function getKanjiMeaningsList(kanji, overrides) {
   if (!kanji) {
     return [];
@@ -74,6 +99,13 @@ export function getKanjiMeaningsList(kanji, overrides) {
 
 export function getKanjiMeaningMn(kanji, overrides) {
   return getKanjiMeaningsList(kanji, overrides).join('・');
+}
+
+export function getKanjiEnglishMeaningsList(kanji) {
+  if (!kanji) {
+    return [];
+  }
+  return Array.isArray(kanji.meaningsEnList) ? kanji.meaningsEnList : [];
 }
 
 export function hasWordOverride(wordId, overrides) {
@@ -151,9 +183,11 @@ export function resolveKanjiForDisplay(kanji, overrides) {
     return kanji;
   }
   const meaningsMnList = getKanjiMeaningsList(kanji, overrides);
+  const meaningsEnList = getKanjiEnglishMeaningsList(kanji);
   return {
     ...kanji,
     meaningsMnList,
+    meaningsEnList,
     meaningMn: meaningsMnList.join('・'),
   };
 }

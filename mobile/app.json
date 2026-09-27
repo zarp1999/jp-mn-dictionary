@@ -2,7 +2,7 @@
   "expo": {
     "name": "NichiMo",
     "slug": "jp-mn-dictionary",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +13,10 @@
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },
-        "NSLocalNetworkUsageDescription": "e-Paper単語帳へお気に入り単語を送信するためにローカルネットワークを使います。"
+        "NSLocalNetworkUsageDescription": "e-Paper単語帳へお気に入り単語を送信するためにローカルネットワークを使います。",
+        "NSPhotoLibraryUsageDescription": "写真に写っている日本語の文字を読み取って辞書で調べるために、写真へのアクセスを使います。",
+        "NSCameraUsageDescription": "看板や教科書などをカメラで撮影し、日本語の文字を読み取って辞書で調べるために、カメラを使います。",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -32,7 +35,14 @@
     },
     "plugins": [
       "expo-asset",
-      "japanese-tokenizer"
+      "japanese-tokenizer",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "看板や教科書などをカメラで撮影し、日本語の文字を読み取って辞書で調べるために、カメラを使います。",
+          "photosPermission": "写真に写っている日本語の文字を読み取って辞書で調べるために、写真へのアクセスを使います。"
+        }
+      ]
     ],
     "extra": {
       "eas": {

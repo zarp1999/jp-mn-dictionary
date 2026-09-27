@@ -1,3 +1,6 @@
+/**
+ * 【画面部品】文法一覧の1行カード
+ */
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';

@@ -1,3 +1,8 @@
+/**
+ * 【機能】部首・画数による漢字の絞り込み
+ *
+ * 呼び出し元: KanjiSearchScreen
+ */
 import rawKanjiData from '../data/kanji_bank_1.json';
 
 const KANJI_REGEX = /[\u4e00-\u9fff]/;

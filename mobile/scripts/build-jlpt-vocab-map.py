@@ -86,11 +86,13 @@ def main() -> None:
     for tid, num in seen_term.items():
         h = term[tid][0] or ""
         r = term[tid][1] or ""
-        by_level[num].append((norm(r) or norm(h), h, tid))
+        head = norm(h.split(";")[0] if h else "") or norm(h)
+        by_level[num].append((head, norm(r), tid))
 
     result = {}
     for num in ["5", "4", "3", "2", "1"]:
-        rows = sorted(by_level[num], key=lambda x: (x[0], x[1], x[2]))
+        # Headword length + headword (+ reading), not gojuon-by-reading
+        rows = sorted(by_level[num], key=lambda x: (len(x[0]), x[0], x[1], x[2]))
         result[num] = [tid for _, _, tid in rows]
 
     OUT_PATH.write_text(

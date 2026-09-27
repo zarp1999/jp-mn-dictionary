@@ -1,3 +1,6 @@
+/**
+ * 【画面部品】お気に入り内の漢字カード
+ */
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';

@@ -1,3 +1,9 @@
+/**
+ * 【機能】スラングデータの読込・検索
+ *
+ * データ: data/slang_mn.json
+ * 呼び出し元: Slang*Screen, SearchScreen（横断検索）
+ */
 import slangData from '../data/slang_mn.json';
 
 let _items = null;

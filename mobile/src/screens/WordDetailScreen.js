@@ -1,3 +1,10 @@
+/**
+ * 【画面】単語の詳細
+ *
+ * 役割: 見出し語・モンゴル語/英語訳・例文・漢字・活用の表示
+ * 機能: utils/meaningOverrides.js（訳の編集）, utils/conjugation.js（活用）, utils/kanji.js
+ * 遷移元: 検索 / お気に入り / 単語リスト / OCR など
+ */
 import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
@@ -16,7 +23,12 @@ import MeaningEditModal from '../components/MeaningEditModal';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
 import { useMeaningOverrides } from '../theme/MeaningOverridesContext';
-import { parseMeaningsText } from '../utils/meaningOverrides';
+import { useDisableDrawerSwipe } from '../navigation/useDisableDrawerSwipe';
+import {
+  getWordEnglishDefinitions,
+  parseMeaningsText,
+} from '../utils/meaningOverrides';
+import { buildMeaningSections } from '../utils/meaningDisplay';
 
 function createStyles(colors) {
   return StyleSheet.create({
@@ -93,6 +105,12 @@ function createStyles(colors) {
       marginBottom: 6,
       lineHeight: 28,
     },
+    meaningBlock: {
+      marginBottom: 12,
+    },
+    meaningBlockLast: {
+      marginBottom: 0,
+    },
     section: {
       marginBottom: 8,
     },
@@ -116,6 +134,7 @@ export default function WordDetailScreen({
 }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  useDisableDrawerSwipe();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const word = route.params?.word;
   const [editVisible, setEditVisible] = useState(false);
@@ -134,6 +153,16 @@ export default function WordDetailScreen({
   const definitions = useMemo(
     () => (word ? getWordDefinitions(word) : []),
     [word, getWordDefinitions],
+  );
+
+  const definitionsEn = useMemo(
+    () => (word ? getWordEnglishDefinitions(word) : []),
+    [word],
+  );
+
+  const meaningSections = useMemo(
+    () => buildMeaningSections(definitions, definitionsEn),
+    [definitions, definitionsEn],
   );
 
   const handleSaveMeaning = useCallback(async (text) => {
@@ -181,26 +210,45 @@ export default function WordDetailScreen({
         </View>
 
         <View style={[styles.card, styles.meaningCard]}>
-          <View style={styles.labelRow}>
-            <Text style={styles.label}>{t('mongolianTranslation')}</Text>
-            <TouchableOpacity
-              style={styles.editBtn}
-              onPress={() => setEditVisible(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t('editMeaning')}
-            >
-              <Text style={styles.editBtnText}>{t('editMeaning')}</Text>
-            </TouchableOpacity>
-          </View>
-          {definitions.map((def, i) => (
-            <Text key={i} style={styles.definition}>
-              {definitions.length > 1 ? `${i + 1}. ` : ''}
-              {def}
-            </Text>
-          ))}
+          {meaningSections.length === 0 ? (
+            <Text style={styles.definition}>—</Text>
+          ) : (
+            meaningSections.map((section, sectionIndex) => {
+              const isLast = sectionIndex === meaningSections.length - 1;
+              const labelKey =
+                section.lang === 'en' ? 'englishTranslation' : 'mongolianTranslation';
+              const showEdit = section.lang === 'mn';
+              return (
+                <View
+                  key={section.lang}
+                  style={[styles.meaningBlock, isLast && styles.meaningBlockLast]}
+                >
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>{t(labelKey)}</Text>
+                    {showEdit ? (
+                      <TouchableOpacity
+                        style={styles.editBtn}
+                        onPress={() => setEditVisible(true)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('editMeaning')}
+                      >
+                        <Text style={styles.editBtnText}>{t('editMeaning')}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  {section.items.map((def, i) => (
+                    <Text key={`${section.lang}-${i}`} style={styles.definition}>
+                      {section.items.length > 1 ? `${i + 1}. ` : ''}
+                      {def}
+                    </Text>
+                  ))}
+                </View>
+              );
+            })
+          )}
         </View>
 
-        {word.examples.length > 0 ? (
+        {word.examples?.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>{t('examples')}</Text>
             {word.examples.map((ex, i) => (
@@ -218,7 +266,7 @@ export default function WordDetailScreen({
           />
         ) : null}
 
-        <ConjugationSection headword={word.headword} />
+        <ConjugationSection headword={word.headword} reading={word.reading} />
       </ScrollView>
 
       <MeaningEditModal

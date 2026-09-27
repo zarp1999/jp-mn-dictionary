@@ -1,7 +1,15 @@
+/**
+ * 【機能】単語辞書の検索・読み込み（画面ではない）
+ *
+ * 役割: term_bank + dictionary_mn_v2 を横断して日本語/モンゴル語/英語で検索
+ * 呼び出し元: SearchScreen, OcrScreen, WordList など
+ * 関連: translationLookup.js（v2 訳の解決）, kuromojiTokenizer.js（活用形の分割検索）
+ */
 import rawData from '../data/term_bank_1.json';
-import { getLookupTerms } from './kuromojiTokenizer';
+import { analyzeSentence, getLookupTerms } from './kuromojiTokenizer';
 import {
   resolveDefinitions,
+  resolveEnglishDefinitions,
   searchV2WordsScored,
   warmUpV2SearchIndexes,
   normalizeSearchText,
@@ -26,26 +34,34 @@ function parseEntryLight(item, index) {
     reading,
     _rawItem: item,
     definitions: null,
+    definitionsEn: null,
     examples: null,
   };
 }
 
 function hydrateWord(word) {
-  if (!word || Array.isArray(word.definitions)) {
+  if (!word) {
     return word;
   }
 
-  const item = word._rawItem;
-  const definitionRaw = Array.isArray(item[5]) ? item[5][0] : (item[5] || '');
-  const parts = definitionRaw.split('◇');
-  const termBankDefinitions = parts[0]
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  if (!Array.isArray(word.definitions)) {
+    const item = word._rawItem;
+    const definitionRaw = Array.isArray(item[5]) ? item[5][0] : (item[5] || '');
+    const parts = definitionRaw.split('◇');
+    const termBankDefinitions = parts[0]
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-  word.definitions = resolveDefinitions(word.headword, word.reading, termBankDefinitions);
-  word.examples = parts[1] ? parseExampleBlocks(parts[1]) : [];
-  delete word._rawItem;
+    word.definitions = resolveDefinitions(word.headword, word.reading, termBankDefinitions);
+    word.examples = parts[1] ? parseExampleBlocks(parts[1]) : [];
+    delete word._rawItem;
+  }
+
+  if (!Array.isArray(word.definitionsEn)) {
+    word.definitionsEn = resolveEnglishDefinitions(word.headword, word.reading);
+  }
+
   return word;
 }
 
@@ -419,6 +435,19 @@ function queryLooksLikeMongolian(query) {
   return CYRILLIC_RE.test(query);
 }
 
+function queryLooksLikeEnglish(query) {
+  if (!query || query.length < 2) {
+    return false;
+  }
+  if (queryLooksLikeMongolian(query)) {
+    return false;
+  }
+  if (/[\u3040-\u30ff\u4e00-\u9fff]/.test(query)) {
+    return false;
+  }
+  return /[a-zA-Z]/.test(query);
+}
+
 function withTimeout(promise, ms) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -540,16 +569,39 @@ function scoreTextMatch(text, query, baseOffset) {
 
 function getJapaneseMatchScore(word, query) {
   let best = null;
+
   for (const alias of getHeadwordAliases(word.headword)) {
-    const score = scoreTextMatch(alias, query, 0);
-    if (score !== null && (best === null || score < best)) {
+    if (!alias || !alias.includes(query)) {
+      continue;
+    }
+    let score;
+    if (alias === query) {
+      score = 0;
+    } else if (alias.startsWith(query)) {
+      score = 2;
+    } else {
+      score = 4;
+    }
+    if (best === null || score < best) {
       best = score;
     }
   }
-  const readingScore = scoreTextMatch(word.reading, query, 3);
-  if (readingScore !== null && (best === null || readingScore < best)) {
-    best = readingScore;
+
+  const reading = word.reading;
+  if (reading && reading.includes(query)) {
+    let score;
+    if (reading === query) {
+      score = 1;
+    } else if (reading.startsWith(query)) {
+      score = 3;
+    } else {
+      score = 5;
+    }
+    if (best === null || score < best) {
+      best = score;
+    }
   }
+
   return best;
 }
 
@@ -557,6 +609,19 @@ function getMongolianMatchScore(word, query) {
   hydrateWord(word);
   let best = null;
   for (const def of word.definitions || []) {
+    const text = def.toLowerCase();
+    const score = scoreTextMatch(text, query, 0);
+    if (score !== null && (best === null || score < best)) {
+      best = score;
+    }
+  }
+  return best;
+}
+
+function getEnglishMatchScore(word, query) {
+  hydrateWord(word);
+  let best = null;
+  for (const def of word.definitionsEn || []) {
     const text = def.toLowerCase();
     const score = scoreTextMatch(text, query, 0);
     if (score !== null && (best === null || score < best)) {
@@ -633,7 +698,7 @@ function searchWordsJapaneseIndexed(query, limit = 100) {
     addScoredWord(matches, seenIds, word, 0);
   }
   for (const word of _termExactReadingIndex.get(query) || []) {
-    addScoredWord(matches, seenIds, word, 3);
+    addScoredWord(matches, seenIds, word, 1);
   }
 
   for (const word of collectPrefixFromSorted(_termSortedHeadwords, query, limit * 2)) {
@@ -641,13 +706,13 @@ function searchWordsJapaneseIndexed(query, limit = 100) {
     if (exactAlias) {
       continue;
     }
-    addScoredWord(matches, seenIds, word, 1);
+    addScoredWord(matches, seenIds, word, 2);
   }
   for (const word of collectPrefixFromSorted(_termSortedReadings, query, limit * 2)) {
     if (word.reading === query) {
       continue;
     }
-    addScoredWord(matches, seenIds, word, 4);
+    addScoredWord(matches, seenIds, word, 3);
   }
 
   if (matches.length < limit && query.length >= 2) {
@@ -658,7 +723,7 @@ function searchWordsJapaneseIndexed(query, limit = 100) {
         continue;
       }
       const score = getJapaneseMatchScore(word, query);
-      if (score === 2 || score === 5) {
+      if (score === 4 || score === 5) {
         addScoredWord(matches, seenIds, word, score);
       }
       if (matches.length >= limit * 3) {
@@ -672,7 +737,8 @@ function searchWordsJapaneseIndexed(query, limit = 100) {
 }
 
 function searchWordsStandardScored(query, direction = 'jp-mn', limit = 100) {
-  const q = normalizeSearchQuery(query, { lowerCase: direction === 'mn-jp' });
+  const lowerCase = direction === 'mn-jp' || direction === 'en-jp';
+  const q = normalizeSearchQuery(query, { lowerCase });
   if (!q) {
     return [];
   }
@@ -683,10 +749,11 @@ function searchWordsStandardScored(query, direction = 'jp-mn', limit = 100) {
 
   const all = getAllWords();
   const matches = [];
+  const scoreFn = direction === 'en-jp' ? getEnglishMatchScore : getMongolianMatchScore;
 
   for (let i = 0; i < all.length; i++) {
     const word = all[i];
-    const score = getMongolianMatchScore(word, q);
+    const score = scoreFn(word, q);
     if (score !== null) {
       matches.push({ word, score });
       if (matches.length >= limit * 5) {
@@ -709,6 +776,9 @@ function searchMergedSources(query, limit = 100) {
   }
   if (queryLooksLikeMongolian(normalized)) {
     scoredLists.push(searchWordsStandardScored(normalized, 'mn-jp', limit));
+  }
+  if (queryLooksLikeEnglish(normalized)) {
+    scoredLists.push(searchWordsStandardScored(normalized, 'en-jp', limit));
   }
 
   return mergeScoredResults(scoredLists, limit);
@@ -737,6 +807,16 @@ async function searchMergedSourcesWithV2(query, limit = 100) {
       scoredLists.push(v2MnMatches);
     } catch (error) {
       console.warn('V2 Mongolian search failed', error);
+    }
+  }
+
+  if (queryLooksLikeEnglish(normalized)) {
+    scoredLists.push(searchWordsStandardScored(normalized, 'en-jp', limit));
+    try {
+      const v2EnMatches = await searchV2WordsScored(normalized, 'en-jp', limit);
+      scoredLists.push(v2EnMatches);
+    } catch (error) {
+      console.warn('V2 English search failed', error);
     }
   }
 
@@ -831,6 +911,43 @@ export async function searchWordsFast(query, _direction = 'jp-mn', limit = 100) 
 
   await warmUpV2SearchIndexes();
   return hydrateWords(searchWordsByHeadwordSegmentation(trimmed, limit));
+}
+
+/** 文貼り付け検索: 長文・句読点付きなど「文っぽい」入力か */
+export function isSentenceLikeQuery(query) {
+  const trimmed = normalizeSearchText(query);
+  if (!trimmed) {
+    return false;
+  }
+  if (trimmed.length >= 12) {
+    return true;
+  }
+  if (/[\n。、！？!?]/.test(trimmed)) {
+    return true;
+  }
+  if (/\s/.test(trimmed) && trimmed.length >= 6) {
+    return true;
+  }
+  return false;
+}
+
+/** 文を形態素解析し、辞書にヒットした単語を文順で返す */
+export async function searchWordsFromSentence(query, _direction = 'jp-mn', limit = 100) {
+  const trimmed = normalizeSearchText(query);
+  if (!trimmed) {
+    return { tokens: [], words: [] };
+  }
+
+  await warmUpDictionarySearch();
+  await warmUpV2SearchIndexes();
+
+  const tokens = await analyzeSentence(trimmed);
+  const lookupTerms = tokens
+    .map((token) => token.lookup)
+    .filter(Boolean);
+  const words = hydrateWords(lookupExactTerms(lookupTerms)).slice(0, limit);
+
+  return { tokens, words };
 }
 
 export async function searchWordsFollowUp(query, _direction = 'jp-mn', limit = 100) {

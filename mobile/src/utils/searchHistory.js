@@ -1,3 +1,9 @@
+/**
+ * 【機能】検索履歴の保存・読込（AsyncStorage）
+ *
+ * 役割: 最近調べた単語を履歴として保持
+ * 呼び出し元: SearchScreen
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = '@jp_mn_search_history';
@@ -7,12 +13,16 @@ function toHistoryItem(word) {
   const definitions = Array.isArray(word.definitions)
     ? word.definitions.filter(Boolean).slice(0, 3)
     : [];
+  const definitionsEn = Array.isArray(word.definitionsEn)
+    ? word.definitionsEn.filter(Boolean).slice(0, 3)
+    : [];
 
   return {
     id: word.id,
     headword: word.headword,
     reading: word.reading || '',
     definitions,
+    definitionsEn,
   };
 }
 
@@ -38,6 +48,9 @@ function normalizeHistory(value) {
       reading: entry.reading ? String(entry.reading) : '',
       definitions: Array.isArray(entry.definitions)
         ? entry.definitions.filter(Boolean).slice(0, 3)
+        : [],
+      definitionsEn: Array.isArray(entry.definitionsEn)
+        ? entry.definitionsEn.filter(Boolean).slice(0, 3)
         : [],
     });
     if (items.length >= MAX_HISTORY) {

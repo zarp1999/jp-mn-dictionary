@@ -10,6 +10,9 @@ web-build/
 expo-env.d.ts
 public/dictionary_mn_v2.json
 
+# Build-time only; MN/EN meanings merged into kanji_bank_1.json (not imported by the app)
+src/data/kanjidic_mn.json
+
 # Native
 .kotlin/
 *.orig.*

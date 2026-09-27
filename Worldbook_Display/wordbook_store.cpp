@@ -14,6 +14,7 @@ static const char *TAG = "wordbook_store";
 static const char *STORE_PATH = "/wordbook.bin";
 static const char *STORE_PATH_TMP = "/wordbook.tmp";
 static const char *PROGRESS_PATH = "/progress.bin";
+static const char *SRS_PATH_LEGACY = "/srs.bin"; /* removed feature; cleaned up on boot */
 static const char *NVS_NS = "wordbook"; /* legacy only (one-time migrate) */
 
 static const uint32_t STORE_MAGIC = 0x314B4257u; /* 'WBK1' little-endian */
@@ -269,6 +270,10 @@ void wordbook_store_init(void)
     ESP_LOGW(TAG, "LittleFS unavailable — use partitions.csv / erase flash if needed");
   } else {
     ESP_LOGI(TAG, "LittleFS mounted total=%u used=%u", (unsigned)LittleFS.totalBytes(), (unsigned)LittleFS.usedBytes());
+    if (LittleFS.exists(SRS_PATH_LEGACY)) {
+      LittleFS.remove(SRS_PATH_LEGACY);
+      ESP_LOGI(TAG, "removed legacy %s", SRS_PATH_LEGACY);
+    }
   }
 
   if (s_mutex && xSemaphoreTake(s_mutex, portMAX_DELAY) == pdTRUE) {

@@ -1,3 +1,8 @@
+/**
+ * 【画面部品】単語1件のリスト行（見出し・訳・お気に入り☆）
+ *
+ * 呼び出し元: 検索結果・単語リスト・お気に入りなど
+ */
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';

@@ -1,3 +1,6 @@
+/**
+ * 【画面部品】詳細画面上部（戻る + お気に入り☆）
+ */
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLocale } from '../i18n/LocaleContext';

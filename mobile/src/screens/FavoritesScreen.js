@@ -1,3 +1,10 @@
+/**
+ * 【画面】お気に入り一覧
+ *
+ * 役割: 保存した単語・漢字の一覧と e-Paper 送信 UI
+ * 機能: utils/favorites.js, utils/epaperSync.js
+ * 遷移: navigation/FavoritesStack.js
+ */
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,

@@ -1,3 +1,6 @@
+/**
+ * 【画面部品】例文1件の表示（ふりがな付きなど）
+ */
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import FuriganaText from './FuriganaText';

@@ -1,3 +1,9 @@
+/**
+ * 【機能】お気に入りの保存・読込（AsyncStorage）
+ *
+ * 役割: 単語/漢字のお気に入り Map を端末に永続化
+ * 呼び出し元: App.js, FavoritesScreen
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = '@jp_mn_favorites';

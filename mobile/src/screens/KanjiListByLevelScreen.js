@@ -1,3 +1,9 @@
+/**
+ * 【画面】ある JLPT レベルの漢字一覧
+ *
+ * 役割: レベル内の漢字をリスト表示し、詳細へ遷移
+ * 機能: utils/kanji.js
+ */
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import {
   View,
@@ -11,6 +17,7 @@ import {
 } from 'react-native';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
+import { useDisableDrawerSwipe } from '../navigation/useDisableDrawerSwipe';
 import { getKanjiEntry, listKanjiCharactersByJlpt } from '../utils/kanji';
 import { confirmAndSendKanjiToEpaper } from '../utils/epaperSendUi';
 import { buildEpaperRanges, sliceByRange } from '../utils/epaperRanges';
@@ -124,6 +131,7 @@ function createStyles(colors) {
 export default function KanjiListByLevelScreen({ navigation, route }) {
   const { t } = useLocale();
   const { colors } = useTheme();
+  useDisableDrawerSwipe();
   const { confirmHasDevice } = useEpaperIntro();
   const { overrides } = useMeaningOverrides();
   const styles = useMemo(() => createStyles(colors), [colors]);

@@ -1,3 +1,6 @@
+/**
+ * 【機能】e-Paper 初回説明モーダルの表示制御 Context
+ */
 import React, {
   createContext,
   useCallback,

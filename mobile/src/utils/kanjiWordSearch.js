@@ -1,8 +1,14 @@
+/**
+ * 【機能】ある漢字を含む語を位置（前/中/後）で検索
+ *
+ * 呼び出し元: KanjiWordListScreen
+ */
 import { getAllWords, hydrateWords, warmUpDictionarySearch } from './dictionary';
 import {
   loadRawV2Data,
   normalizeSearchText,
   resolveDefinitions,
+  resolveEnglishDefinitions,
   V2_ID_OFFSET,
 } from './translationLookup';
 import { KANJI_WORD_POSITION } from './kanjiPositionQuery';
@@ -82,6 +88,7 @@ function v2EntryToWord(entry, rawIndex) {
     headword,
     reading,
     definitions: resolveDefinitions(headword, reading, rawDefinitions),
+    definitionsEn: resolveEnglishDefinitions(headword, reading),
     examples: [],
   };
 }

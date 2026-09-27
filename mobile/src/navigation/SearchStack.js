@@ -1,3 +1,10 @@
+/**
+ * 【画面遷移】検索まわりのスタック（ナビ）
+ *
+ * 役割: 検索 → 単語詳細 / 漢字詳細 / 文法・スラング詳細などへの遷移だけを定義
+ * 画面本体: screens/SearchScreen.js
+ * 入口: App.js の Drawer.Screen name="Search"
+ */
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -13,7 +20,7 @@ const Stack = createNativeStackNavigator();
 
 export default function SearchStack({ favorites, onToggleFavorite }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: true }}>
       <Stack.Screen name="SearchMain">
         {(props) => (
           <SearchScreen

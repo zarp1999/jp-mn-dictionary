@@ -1,3 +1,8 @@
+/**
+ * 【画面部品】単語詳細内の「活用形」セクション
+ *
+ * 機能: utils/conjugation.js で活用を生成して表形式で表示
+ */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
@@ -87,7 +92,7 @@ function createStyles(colors) {
   });
 }
 
-export default function ConjugationSection({ headword }) {
+export default function ConjugationSection({ headword, reading }) {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -100,7 +105,7 @@ export default function ConjugationSection({ headword }) {
     setResult(null);
     setSelectedMood(null);
 
-    generateConjugations(headword)
+    generateConjugations(headword, reading)
       .then((next) => {
         if (!cancelled) {
           setResult(next);
@@ -116,7 +121,7 @@ export default function ConjugationSection({ headword }) {
     return () => {
       cancelled = true;
     };
-  }, [headword]);
+  }, [headword, reading]);
 
   const activeGroup = useMemo(
     () => result?.groups?.find((group) => group.id === selectedMood) ?? null,

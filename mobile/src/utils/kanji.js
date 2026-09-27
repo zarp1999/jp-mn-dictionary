@@ -1,4 +1,10 @@
+/**
+ * 【機能】漢字データの取得（文字・JLPT・単語から漢字など）
+ *
+ * 呼び出し元: Kanji*Screen, WordDetailScreen の漢字セクション
+ */
 import rawKanjiData from '../data/kanji_bank_1.json';
+import { compareKanjiCharactersForList, parseStrokeCountNumber } from './listSort';
 
 const KANJI_REGEX = /[\u4e00-\u9fff]/;
 const SIMILAR_KANJI_PREFIX = '似ている漢字:';
@@ -39,8 +45,8 @@ function formatStrokeCount(value) {
   return value.split('（')[0].trim() || value;
 }
 
-function parseMeaningsMnList(metadata) {
-  const meanings = metadata?.meanings_mn;
+function parseMeaningsList(metadata, key) {
+  const meanings = metadata?.[key];
   if (!Array.isArray(meanings)) {
     return [];
   }
@@ -48,6 +54,14 @@ function parseMeaningsMnList(metadata) {
   return meanings
     .map((part) => (typeof part === 'string' ? part.trim() : ''))
     .filter(Boolean);
+}
+
+function parseMeaningsMnList(metadata) {
+  return parseMeaningsList(metadata, 'meanings_mn');
+}
+
+function parseMeaningsEnList(metadata) {
+  return parseMeaningsList(metadata, 'meanings_en');
 }
 
 function parseMeaningsMn(metadata) {
@@ -100,6 +114,7 @@ export function parseKanjiEntry(item) {
   const character = item[0] || '';
   const metadata = item[5] || {};
   const meaningsMnList = parseMeaningsMnList(metadata);
+  const meaningsEnList = parseMeaningsEnList(metadata);
 
   return {
     character,
@@ -107,6 +122,7 @@ export function parseKanjiEntry(item) {
     kunYomi: parseKunYomi(item[2]),
     meaningMn: meaningsMnList.join('・'),
     meaningsMnList,
+    meaningsEnList,
     strokeCount: formatStrokeCount(metadata['画数'] || metadata['総画'] || ''),
     jlpt: formatJlpt(metadata.jlpt),
     grade: metadata['学年'] || '',
@@ -202,7 +218,7 @@ function normalizeJlptLevel(level) {
 
 /**
  * Characters tagged with the given JLPT level (e.g. 'N5' or '5').
- * Order follows kanji_bank appearance (stable).
+ * Order: stroke count (asc), then character — not gojuon / bank file order.
  */
 export function listKanjiCharactersByJlpt(level) {
   const normalized = normalizeJlptLevel(level);
@@ -211,12 +227,17 @@ export function listKanjiCharactersByJlpt(level) {
   }
 
   if (!_kanjiByJlptCache) {
+    const strokeByChar = new Map();
     _kanjiByJlptCache = new Map();
+
     for (const item of rawKanjiData) {
       const character = item[0];
       const rawLevel = item[5]?.jlpt;
       if (!character || rawLevel === undefined || rawLevel === null || rawLevel === '') {
         continue;
+      }
+      if (!strokeByChar.has(character)) {
+        strokeByChar.set(character, parseStrokeCountNumber(item[5]));
       }
       const key = formatJlpt(rawLevel);
       if (!key) {
@@ -228,6 +249,11 @@ export function listKanjiCharactersByJlpt(level) {
         _kanjiByJlptCache.set(key, list);
       }
       list.push(character);
+    }
+
+    const strokeForChar = (ch) => strokeByChar.get(ch) ?? Number.POSITIVE_INFINITY;
+    for (const list of _kanjiByJlptCache.values()) {
+      list.sort((a, b) => compareKanjiCharactersForList(a, b, strokeForChar));
     }
   }
 

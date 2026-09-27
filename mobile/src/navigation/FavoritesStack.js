@@ -1,3 +1,10 @@
+/**
+ * 【画面遷移】お気に入りまわりのスタック（ナビ）
+ *
+ * 役割: お気に入り一覧 → 単語詳細 / 漢字詳細 への遷移
+ * 画面本体: screens/FavoritesScreen.js
+ * 入口: App.js の Drawer.Screen name="Favorites"
+ */
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -10,7 +17,7 @@ const Stack = createNativeStackNavigator();
 
 export default function FavoritesStack({ favorites, onToggleFavorite }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: true }}>
       <Stack.Screen name="FavoritesMain">
         {(props) => (
           <FavoritesScreen

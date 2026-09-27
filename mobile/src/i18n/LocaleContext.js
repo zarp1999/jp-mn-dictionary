@@ -1,3 +1,8 @@
+/**
+ * 【機能】アプリ言語（日本語 / モンゴル語）の切り替えと t() 翻訳
+ *
+ * 文言本体: translations.js
+ */
 import React, {
   createContext,
   useCallback,

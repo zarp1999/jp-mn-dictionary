@@ -1,3 +1,8 @@
+/**
+ * 【機能】漢字位置クエリ（例: 学_ / _学_ / _学）のパース
+ *
+ * 呼び出し元: kanjiWordSearch.js
+ */
 import { normalizeSearchText } from './translationLookup';
 
 export const KANJI_WORD_POSITION = {

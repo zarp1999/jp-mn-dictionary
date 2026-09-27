@@ -1,3 +1,10 @@
+/**
+ * 【機能】日本語の形態素解析（単語分割）
+ *
+ * 役割: 文や活用形をトークンに分け、辞書検索用の原形を取り出す
+ * 実装: iOS は japanese-tokenizer（MeCab）、それ以外は kuromoji
+ * 呼び出し元: dictionary 検索フォローアップ、OcrScreen の行→単語、conjugation
+ */
 import { Platform } from 'react-native';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -284,36 +291,68 @@ export async function tokenizeJapanese(text) {
   return tokenizer.tokenize(text);
 }
 
+/** 1 トークン分の辞書検索語を決める（OCR・文分解で共通） */
+export function resolveTokenLookup(token, tokens, index) {
+  if (token.pos.startsWith('助動詞') && token.basic_form === 'たい') {
+    const prev = tokens[index - 1];
+    if (prev?.basic_form === 'する' && prev.surface_form === 'し') {
+      return 'したい';
+    }
+    if (prev?.pos.startsWith('動詞')) {
+      return 'たい';
+    }
+    return null;
+  }
+
+  if (SKIP_POS_PREFIXES.some((prefix) => token.pos.startsWith(prefix))) {
+    return null;
+  }
+
+  const term = token.basic_form && token.basic_form !== '*'
+    ? token.basic_form
+    : token.surface_form;
+
+  if (term && !shouldSkipLookupToken(token, term)) {
+    return term;
+  }
+
+  return null;
+}
+
+/** 形態素解析結果を画面表示用トークン配列に変換する */
+export function buildSentenceDisplayTokens(tokens) {
+  return tokens.map((token, index) => {
+    const lookup = resolveTokenLookup(token, tokens, index);
+    return {
+      id: index,
+      surface: token.surface_form,
+      lookup,
+      skippable: lookup === null,
+      pos: token.pos,
+    };
+  });
+}
+
 export function getLookupTermsFromTokens(tokens) {
   const terms = [];
 
   for (let i = 0; i < tokens.length; i += 1) {
-    const token = tokens[i];
-
-    if (token.pos.startsWith('助動詞') && token.basic_form === 'たい') {
-      const prev = tokens[i - 1];
-      if (prev?.basic_form === 'する' && prev.surface_form === 'し') {
-        terms.push('したい');
-      } else if (prev?.pos.startsWith('動詞')) {
-        terms.push('たい');
-      }
-      continue;
-    }
-
-    if (SKIP_POS_PREFIXES.some((prefix) => token.pos.startsWith(prefix))) {
-      continue;
-    }
-
-    const term = token.basic_form && token.basic_form !== '*'
-      ? token.basic_form
-      : token.surface_form;
-
-    if (term && !shouldSkipLookupToken(token, term)) {
-      terms.push(term);
+    const lookup = resolveTokenLookup(tokens[i], tokens, i);
+    if (lookup) {
+      terms.push(lookup);
     }
   }
 
   return terms;
+}
+
+export async function analyzeSentence(text) {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return [];
+  }
+  const tokens = await tokenizeJapanese(trimmed);
+  return buildSentenceDisplayTokens(tokens);
 }
 
 export async function getLookupTerms(text) {

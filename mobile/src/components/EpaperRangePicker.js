@@ -1,3 +1,6 @@
+/**
+ * 【画面部品】e-Paper 送信時の件数範囲ピッカー
+ */
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLocale } from '../i18n/LocaleContext';

@@ -1,3 +1,6 @@
+/**
+ * 【画面部品】漢字の上にふりがなを載せて表示するテキスト
+ */
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';

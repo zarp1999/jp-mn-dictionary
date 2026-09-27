@@ -1,3 +1,9 @@
+/**
+ * 【機能】動詞・形容詞の活用形を生成
+ *
+ * 役割: 辞書形などからテ形・過去・可能などを作る
+ * 呼び出し元: components/ConjugationSection.js（単語詳細画面）
+ */
 import { tokenizeJapanese } from './kuromojiTokenizer';
 
 /** @typedef {'verb' | 'i-adjective' | 'na-adjective'} WordClass */
@@ -527,14 +533,53 @@ function normalizeConjugationHeadword(headword) {
   return primary || trimmed;
 }
 
+function normalizeConjugationReading(reading) {
+  const trimmed = (reading || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+  const primary = trimmed.split(';')[0].trim();
+  return primary || trimmed;
+}
+
+/**
+ * 「来る／きたる」は連体詞なので活用しない。
+ * 「来る／くる」は MeCab が連体詞と誤判定しやすいので、読みを見て動詞活用を強制する。
+ */
+function resolveForcedKuruLemma(headword, reading) {
+  const lemma = normalizeConjugationHeadword(headword);
+  const readingNorm = normalizeConjugationReading(reading);
+
+  if (lemma === '来る' && readingNorm === 'きたる') {
+    return null;
+  }
+  if (lemma === 'くる') {
+    return 'くる';
+  }
+  if (lemma === '来る') {
+    return '来る';
+  }
+  return undefined;
+}
+
 /**
  * @param {string} headword
+ * @param {string} [reading]
  * @returns {Promise<ConjugationResult | null>}
  */
-export async function generateConjugations(headword) {
+export async function generateConjugations(headword, reading = '') {
   const trimmed = normalizeConjugationHeadword(headword);
   if (!trimmed) {
     return null;
+  }
+
+  const forcedKuru = resolveForcedKuruLemma(trimmed, reading);
+  if (forcedKuru === null) {
+    return null;
+  }
+  if (forcedKuru) {
+    const groups = conjugateKuru(forcedKuru);
+    return groups?.length ? { wordClass: 'verb', groups } : null;
   }
 
   try {

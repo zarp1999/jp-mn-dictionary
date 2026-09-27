@@ -1,3 +1,9 @@
+/**
+ * 【画面】漢字リスト（JLPT レベル選択）
+ *
+ * 役割: 漢字のレベルカードを表示
+ * 次画面: KanjiListByLevelScreen / KanjiSearchScreen
+ */
 import React, { useMemo } from 'react';
 import {
   View,

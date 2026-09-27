@@ -1,9 +1,18 @@
+/**
+ * 【入口】アプリ全体の組み立て
+ *
+ * 役割:
+ *   - Theme / Locale / お気に入り などの Provider で包む
+ *   - 左ドロワーに各機能（Search / Ocr / Favorites …）を登録する
+ * 各機能の画面本体は src/screens、遷移は src/navigation、処理は src/utils
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { StatusBar } from 'react-native';
 
 import SearchStack from './src/navigation/SearchStack';
+import OcrStack from './src/navigation/OcrStack';
 import FavoritesStack from './src/navigation/FavoritesStack';
 import WordListStack from './src/navigation/WordListStack';
 import KanjiListStack from './src/navigation/KanjiListStack';
@@ -60,6 +69,7 @@ function AppNavigator() {
         screenOptions={{
           headerShown: false,
           drawerType: 'front',
+          swipeEnabled: true,
           drawerStyle: {
             width: 260,
             backgroundColor: colors.white,
@@ -70,6 +80,16 @@ function AppNavigator() {
         <Drawer.Screen name="Search">
           {() => (
             <SearchStack
+              favorites={favorites}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          )}
+        </Drawer.Screen>
+
+        {/* 写真から検索（OCR）。画面本体は OcrStack → OcrScreen */}
+        <Drawer.Screen name="Ocr">
+          {() => (
+            <OcrStack
               favorites={favorites}
               onToggleFavorite={handleToggleFavorite}
             />

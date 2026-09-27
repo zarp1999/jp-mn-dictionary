@@ -1,3 +1,10 @@
+/**
+ * 【画面】単語リスト（JLPT レベル選択）
+ *
+ * 役割: N5〜N1 などのレベルカードを表示
+ * 機能: utils/jlptVocab.js
+ * 次画面: WordListByLevelScreen
+ */
 import React, { useMemo } from 'react';
 import {
   View,

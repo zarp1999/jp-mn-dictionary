@@ -1,0 +1,8 @@
+{
+  "name": "text-recognizer",
+  "version": "1.0.0",
+  "description": "On-device Japanese text recognition (Apple Vision on iOS)",
+  "main": "index.js",
+  "keywords": ["react-native", "expo", "ocr"],
+  "license": "UNLICENSED"
+}

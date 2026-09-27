@@ -1,3 +1,9 @@
+/**
+ * 【画面】スラング一覧（検索あり）
+ *
+ * 役割: スラング用語のリスト
+ * 機能: utils/slang.js
+ */
 import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
@@ -40,7 +46,7 @@ function createStyles(colors) {
       backgroundColor: colors.bg,
       borderRadius: 12,
       paddingHorizontal: 14,
-      paddingVertical: 10,
+      minHeight: 44,
       gap: 8,
       borderWidth: 0.5,
       borderColor: colors.border,
@@ -50,6 +56,7 @@ function createStyles(colors) {
     },
     searchInput: {
       flex: 1,
+      minHeight: 44,
       fontSize: 15,
       color: colors.textPrimary,
     },
@@ -127,7 +134,10 @@ export default function SlangListScreen({ navigation }) {
             textContentType="none"
           />
           {query.length > 0 ? (
-            <TouchableOpacity onPress={() => setQuery('')}>
+            <TouchableOpacity
+              onPress={() => setQuery('')}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
               <Text style={styles.clearBtn}>✕</Text>
             </TouchableOpacity>
           ) : null}

@@ -1,3 +1,10 @@
+/**
+ * 【画面】設定
+ *
+ * 役割: テーマ・アプリ言語・e-Paper 情報・お気に入りリセットなど
+ * 機能: theme/ThemeContext, i18n/LocaleContext, utils/epaperIntro.js
+ * 入口: App.js の Drawer.Screen name="Settings"（スタックなし）
+ */
 import React, { useMemo } from 'react';
 import {
   View,

@@ -1,3 +1,8 @@
+/**
+ * 【機能】e-Paper 端末への単語/漢字送信（Wi-Fi）
+ *
+ * 呼び出し元: FavoritesScreen / WordList / KanjiList の送信 UI
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getKanjiEntry } from './kanji';
 import { isKanjiFavorite } from './favorites';

@@ -1,3 +1,6 @@
+/**
+ * 【画面部品】e-Paper 端末の説明モーダル
+ */
 import React, { useMemo } from 'react';
 import {
   Modal,

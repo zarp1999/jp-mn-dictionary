@@ -1,3 +1,6 @@
+/**
+ * 【機能】e-Paper 送信ダイアログ用の文言・確認フローの共通処理
+ */
 import { Alert, Platform } from 'react-native';
 import {
   EPAPER_MAX_WORDS,

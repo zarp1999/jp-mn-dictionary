@@ -1,3 +1,9 @@
+/**
+ * 【画面】文法（JLPT レベル選択）
+ *
+ * 役割: 文法のレベルカードを表示
+ * 機能: utils/grammar.js
+ */
 import React, { useMemo } from 'react';
 import {
   View,

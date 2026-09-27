@@ -1,3 +1,8 @@
+/**
+ * 【機能】アプリ UI の文言テーブル（ja / mn）
+ *
+ * 画面は useLocale().t('キー') で参照する。辞書の訳語データとは別物。
+ */
 export const LOCALES = {
   ja: 'ja',
   mn: 'mn',
@@ -5,9 +10,9 @@ export const LOCALES = {
 
 const ja = {
   appTitle: '日モ辞書',
-  searchPlaceholder: '日本語・モンゴル語で検索…',
+  searchPlaceholder: '日本語・モンゴル語・英語で検索…',
   searchEmptyTitle: '単語を入力して検索',
-  searchEmptySub: '日本語でもモンゴル語でも検索できます',
+  searchEmptySub: '日本語・モンゴル語・英語で検索できます。文を貼り付けると単語に分解して表示します',
   searchHistoryTitle: '検索履歴',
   searchHistoryClear: 'すべて消去',
   searchHistoryClearTitle: '検索履歴を消去',
@@ -22,6 +27,7 @@ const ja = {
   switchToJapanese: 'アプリ言語: モンゴル語。タップで日本語に切り替え',
 
   navSearch: '検索',
+  navOcr: '写真から検索',
   navFavorites: 'お気に入り',
   navWordList: '単語リスト',
   navKanjiList: '漢字リスト',
@@ -158,6 +164,7 @@ const ja = {
   save: '保存',
 
   mongolianTranslation: 'モンゴル語訳',
+  englishTranslation: '英語訳',
   mongolianMeanings: 'モンゴル語の意味',
   editMeaning: '編集',
   saveMeaning: '保存',
@@ -216,6 +223,29 @@ const ja = {
   kanjiWordSearchEmpty: '該当する語がありません',
   kanjiWordSearchCount: (n) => `${n}件`,
 
+  searchSentenceNoWords: 'この文から引ける単語がありません',
+
+  ocrTitle: '写真から検索',
+  ocrTakePhoto: 'カメラで撮る',
+  ocrPickImage: '写真を選ぶ',
+  ocrWritingModeAuto: '自動',
+  ocrWritingModeHorizontal: '横書き',
+  ocrWritingModeVertical: '縦書き',
+  ocrLayoutEmpty: '文字は検出されましたが行に整えられませんでした。「縦書き」を選ぶか、1列を大きく写して再試行してください。',
+  ocrCameraFailed: 'カメラを起動できませんでした',
+  ocrCameraPermissionDenied: 'カメラへのアクセスが許可されていません。設定から許可してください。',
+  ocrRecognizing: '文字を読み取っています…',
+  ocrRecognizedText: '読み取った文字',
+  ocrNoTextFound: '文字を読み取れませんでした。明るく、文字が大きく写った写真をお試しください。',
+  ocrNoWordsInLine: 'この行から引ける単語がありません',
+  ocrPickFailed: '写真を開けませんでした',
+  ocrPermissionDenied: '写真へのアクセスが許可されていません。設定から許可してください。',
+  ocrRecognizeFailed: '文字の読み取りに失敗しました',
+  ocrUnavailable: 'この端末では写真の文字読み取りを利用できません。',
+  ocrJapaneseUnsupported: 'この iOS バージョンでは日本語の読み取りに対応していません（iOS 16 以降が必要です）。',
+  ocrLineA11y: (line) => `${line}の単語を表示`,
+  ocrTermA11y: (term) => `${term}を辞書で引く`,
+
   kanjiSearchTitle: '部首・画数で検索',
   openKanjiSearch: '部首・画数で漢字を探す',
   strokeAny: 'すべて',
@@ -229,9 +259,9 @@ const ja = {
 
 const mn = {
   appTitle: 'НИЧИМО толь',
-  searchPlaceholder: 'Япон / Монгол хэлээр хайх…',
+  searchPlaceholder: 'Япон / Монгол / Англи хэлээр хайх…',
   searchEmptyTitle: 'Үг оруулаад хайна уу',
-  searchEmptySub: 'Япон болон монгол хэлээр хайх боломжтой',
+  searchEmptySub: 'Япон, монгол, англи хэлээр хайх боломжтой. Өгүүлбэр наахад үг болгон задлана',
   searchHistoryTitle: 'Хайлтын түүх',
   searchHistoryClear: 'Бүгдийг устгах',
   searchHistoryClearTitle: 'Хайлтын түүх устгах',
@@ -246,6 +276,7 @@ const mn = {
   switchToJapanese: 'Аппын хэл: монгол. Япон руу солих',
 
   navSearch: 'Хайлт',
+  navOcr: 'Зургаас хайх',
   navFavorites: 'Хадгалсан үгс',
   navWordList: 'Үгийн жагсаалт',
   navKanjiList: 'Ханзын жагсаалт',
@@ -382,6 +413,7 @@ const mn = {
   save: 'Хадгалах',
 
   mongolianTranslation: 'Монгол орчуулга',
+  englishTranslation: 'Англи орчуулга',
   mongolianMeanings: 'Монгол утга',
   editMeaning: 'Засах',
   saveMeaning: 'Хадгалах',
@@ -440,6 +472,29 @@ const mn = {
   kanjiWordSearchEmpty: 'Тохирох үг олдсонгүй',
   kanjiWordSearchCount: (n) => `${n}`,
 
+  searchSentenceNoWords: 'Энэ өгүүлбэрт хайх үг байхгүй',
+
+  ocrTitle: 'Зургаас хайх',
+  ocrTakePhoto: 'Камераар авах',
+  ocrPickImage: 'Зураг сонгох',
+  ocrWritingModeAuto: 'Автомат',
+  ocrWritingModeHorizontal: 'Хөндлөн',
+  ocrWritingModeVertical: 'Босоо',
+  ocrLayoutEmpty: 'Бичиг илэрсэн ч мөр болгож чадсангүй. «Босоо» сонгоод нэг баганыг томруулан аваарай.',
+  ocrCameraFailed: 'Камерыг нээж чадсангүй',
+  ocrCameraPermissionDenied: 'Камерт хандах зөвшөөрөл байхгүй. Тохиргооноос зөвшөөрнө үү.',
+  ocrRecognizing: 'Бичгийг уншиж байна…',
+  ocrRecognizedText: 'Уншсан бичиг',
+  ocrNoTextFound: 'Бичиг уншиж чадсангүй. Гэрэлтэй, том бичигтэй зураг туршина уу.',
+  ocrNoWordsInLine: 'Энэ мөрөнд хайх үг байхгүй',
+  ocrPickFailed: 'Зургийг нээж чадсангүй',
+  ocrPermissionDenied: 'Зурагт хандах зөвшөөрөл байхгүй. Тохиргооноос зөвшөөрнө үү.',
+  ocrRecognizeFailed: 'Бичгийг уншиж чадсангүй',
+  ocrUnavailable: 'Энэ төхөөрөмж дээр зургийн бичиг унших боломжгүй.',
+  ocrJapaneseUnsupported: 'Энэ iOS хувилбар япон бичиг уншихыг дэмждэггүй (iOS 16-аас хойш шаардлагатай).',
+  ocrLineA11y: (line) => `${line}-ийн үгсийг харах`,
+  ocrTermA11y: (term) => `${term}-г толиос хайх`,
+
   kanjiSearchTitle: 'Үндэс · зураасаар хайх',
   openKanjiSearch: 'Үндэс · зураасаар ханз хайх',
   strokeAny: 'Бүгд',
@@ -450,5 +505,6 @@ const mn = {
   clearFilters: 'Шүүлт цэвэрлэх',
   radicalChipA11y: (char) => `Үндэс ${char}`,
 };
+
 
 export const translations = { ja, mn };
