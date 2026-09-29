@@ -20,6 +20,7 @@
       }
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -36,6 +37,7 @@
     "plugins": [
       "expo-asset",
       "japanese-tokenizer",
+      "digital-ink",
       [
         "expo-image-picker",
         {

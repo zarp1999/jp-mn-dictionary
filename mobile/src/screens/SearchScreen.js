@@ -18,6 +18,9 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Keyboard,
+  KeyboardAvoidingView,
+  BackHandler,
 } from 'react-native';
 import {
   searchWordsFast,
@@ -38,6 +41,8 @@ import WordCard from '../components/WordCard';
 import GrammarCard from '../components/GrammarCard';
 import SlangCard from '../components/SlangCard';
 import ScreenHeader from '../components/ScreenHeader';
+import HandwritingPanel from '../components/HandwritingPanel';
+import { insertCandidate } from '../utils/handwriting';
 import { useLocale } from '../i18n/LocaleContext';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -186,10 +191,24 @@ function createStyles(colors) {
 }
 
 export default function SearchScreen({ navigation, route, favorites, onToggleFavorite }) {
-  const { t } = useLocale();
+  const { t, isMongolian } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [query, setQuery] = useState('');
+  const inputRef = useRef(null);
+  const selectionRef = useRef({ start: 0, end: 0 });
+  const [inputMode, setInputMode] = useState('keyboard');
+  const [showInputTools, setShowInputTools] = useState(false);
+  useEffect(() => {
+    if (!showInputTools || inputMode !== 'handwriting') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setShowInputTools(false); setInputMode('keyboard'); return true;
+    });
+    return () => subscription.remove();
+  }, [showInputTools, inputMode]);
+  useFocusEffect(useCallback(() => () => {
+    setShowInputTools(false); setInputMode('keyboard'); Keyboard.dismiss();
+  }, []));
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState([]);
   const [grammarResults, setGrammarResults] = useState([]);
@@ -584,6 +603,7 @@ export default function SearchScreen({ navigation, route, favorites, onToggleFav
   const isQueryPending = Boolean(query.trim()) && (query !== debouncedQuery || isSearching);
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <ScreenHeader
@@ -602,6 +622,10 @@ export default function SearchScreen({ navigation, route, favorites, onToggleFav
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
+            ref={inputRef}
+            onFocus={() => setShowInputTools(true)}
+            showSoftInputOnFocus={inputMode === 'keyboard'}
+            onSelectionChange={e => { selectionRef.current = e.nativeEvent.selection; }}
             style={styles.searchInput}
             placeholder={t('searchPlaceholder')}
             placeholderTextColor={colors.textTertiary}
@@ -672,6 +696,29 @@ export default function SearchScreen({ navigation, route, favorites, onToggleFav
           </Text>
         </View>
       )}
+      {showInputTools && <View>
+        <View style={{ flexDirection: 'row', backgroundColor: colors.white, borderTopWidth: .5, borderColor: colors.border }}>
+          {['keyboard', 'handwriting'].map(mode => <TouchableOpacity key={mode} accessibilityRole="button" accessibilityState={{ selected: inputMode === mode }}
+            style={{ flex: 1, padding: 12, minHeight: 44, alignItems: 'center' }} onPress={() => {
+              setInputMode(mode);
+              if (mode === 'handwriting') { inputRef.current?.blur(); Keyboard.dismiss(); }
+              else { requestAnimationFrame(() => inputRef.current?.focus()); }
+            }}>
+            <Text style={{ color: inputMode === mode ? colors.primary : colors.textPrimary }}>
+              {mode === 'keyboard' ? (isMongolian ? '⌨ Гар' : '⌨ キーボード') : (isMongolian ? '✎ Гараар бичих' : '✎ 手書き')}
+            </Text>
+          </TouchableOpacity>)}
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={isMongolian ? 'Хаах' : '入力パネルを閉じる'} style={{ padding: 12, minWidth: 44 }} onPress={() => {
+            inputRef.current?.blur(); Keyboard.dismiss(); setShowInputTools(false); setInputMode('keyboard');
+          }}><Text style={{ color: colors.textPrimary }}>×</Text></TouchableOpacity>
+        </View>
+        {inputMode === 'handwriting' && <HandwritingPanel onCandidate={candidate => {
+          const next = insertCandidate(query, selectionRef.current, candidate);
+          handleChangeText(next.text); selectionRef.current = next.selection;
+          inputRef.current?.setNativeProps({ selection: next.selection });
+        }} />}
+      </View>}
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }

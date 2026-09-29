@@ -11,6 +11,8 @@ __pycache__/
 venv/
 .venv/
 back_end/venv/
+back_end/tools/paddle-env/
+back_end/tools/paddle-cache/
 
 # Node
 node_modules/
