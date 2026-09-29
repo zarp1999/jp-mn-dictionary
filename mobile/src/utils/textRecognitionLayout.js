@@ -32,7 +32,7 @@ const VERTICAL_ASPECT = 1.3;
 const HORIZONTAL_ASPECT = 0.75;
 
 /** 列クラスタの許容幅（中央値幅に対する倍率） */
-const COLUMN_GAP_RATIO = 1.4;
+const COLUMN_GAP_RATIO = 0.6;
 
 /** 行クラスタの許容高さ（中央値高さに対する倍率） */
 const ROW_GAP_RATIO = 1.15;

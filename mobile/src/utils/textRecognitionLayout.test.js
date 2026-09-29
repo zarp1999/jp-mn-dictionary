@@ -97,6 +97,16 @@ test('縦書きでルビ除去が本文を全消しする場合はフォール�
   assert.ok(lines.length > 0);
 });
 
+test('狭い列間でも隣の本文を混ぜない', () => {
+  const blocks = [
+    { text: '右', x: .6, y: .1, width: .1, height: .1 },
+    { text: '列', x: .6, y: .25, width: .1, height: .1 },
+    { text: '左', x: .48, y: .1, width: .1, height: .1 },
+    { text: '列', x: .48, y: .25, width: .1, height: .1 },
+  ];
+  assert.deepEqual(linesOf(blocks, { writingModePreference: 'vertical' }).lines, ['右列', '左列']);
+});
+
 function linesOf(blocks, options) {
   const layout = layoutRecognizedBlocks(blocks, options);
   return {

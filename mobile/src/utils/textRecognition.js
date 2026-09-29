@@ -119,13 +119,18 @@ export async function recognizeImageText(uri, options = {}) {
   }
 
   // ネイティブ（Swift / Apple Vision）を呼び出し
-  const result = await recognize(uri, { languages: OCR_LANGUAGES });
+  const result = await recognize(uri, {
+    languages: OCR_LANGUAGES,
+    writingMode: options.writingModePreference ?? WRITING_MODE_PREFERENCE.auto,
+  });
   if (!result) {
     return null;
   }
 
   const blocks = Array.isArray(result.blocks) ? result.blocks : [];
-  const layout = layoutRecognizedBlocksWithFallback(blocks, {
+  const layout = result.usedVerticalFallback ? {
+    writingMode: 'vertical', blocks, lines: blocks.map(block => block.text).filter(Boolean),
+  } : layoutRecognizedBlocksWithFallback(blocks, {
     dropFurigana: options.dropFurigana !== false,
     dropFuriganaForVertical: options.dropFuriganaForVertical === true,
     writingModePreference:

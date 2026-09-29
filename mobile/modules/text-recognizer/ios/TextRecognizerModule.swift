@@ -19,6 +19,7 @@ struct RecognizeOptions: Record {
   @Field var languages: [String] = PREFERRED_LANGUAGES
   /// 言語補正は日本語を壊しやすいのでデフォルト OFF
   @Field var useLanguageCorrection: Bool = false
+  @Field var writingMode: String = "auto"
 }
 
 public class TextRecognizerModule: Module {
@@ -97,12 +98,47 @@ public class TextRecognizerModule: Module {
       ])
     }
 
-    // 読み順・縦横判定は JS（textRecognitionLayout.js）に任せ、Vision の bbox をそのまま返す。
+    // Keep normal OCR unchanged. Retry locally for explicitly vertical input or no detections.
+    var usedVerticalFallback = false
+    if options.writingMode == "vertical" || (options.writingMode == "auto" && blocks.isEmpty) {
+      if let upright = VerticalTextPreparation.upright(image) {
+        let strips = VerticalTextPreparation.strips(upright)
+        var recovered: [[String: Any]] = []
+        for strip in strips {
+          let retry = makeRequest(useLanguageCorrection: false)
+          if !selected.isEmpty { retry.recognitionLanguages = selected }
+          retry.minimumTextHeight = 0.01
+          // One horizontal line made of upright glyphs, not a rotated page.
+          do {
+            try VNImageRequestHandler(cgImage: strip.image, orientation: .up).perform([retry])
+            let observations = (retry.results ?? []).sorted { $0.boundingBox.minX < $1.boundingBox.minX }
+            let candidates = observations.compactMap { $0.topCandidates(1).first }
+            let text = candidates.map { $0.string }.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty {
+              recovered.append(["text": text, "x": strip.bounds.minX, "y": strip.bounds.minY,
+                "width": strip.bounds.width, "height": strip.bounds.height,
+                "confidence": candidates.map { Double($0.confidence) }.reduce(0, +) / Double(candidates.count)])
+            }
+          } catch {
+            // A failed optional retry must not discard the original OCR result.
+            continue
+          }
+        }
+        let oldCount = blocks.compactMap { $0["text"] as? String }.joined().count
+        let newCount = recovered.compactMap { $0["text"] as? String }.joined().count
+        if !recovered.isEmpty && newCount >= oldCount {
+          blocks = recovered
+          usedVerticalFallback = true
+        }
+      }
+    }
+    // 読み順・縦横判定は JS 側。列を復元した場合は列単位のまま渡す。
     let lines = blocks.compactMap { $0["text"] as? String }
 
     return [
       "text": lines.joined(separator: "\n"),
       "blocks": blocks,
+      "usedVerticalFallback": usedVerticalFallback,
       "languages": selected.isEmpty ? Array(supported) : selected,
       "supportsJapanese": supported.contains("ja-JP"),
       "imageWidth": Double(image.size.width * image.scale),
